@@ -19,7 +19,6 @@ train_rating <- read_tsv(pins::pin(url),
                          col_names = c("user","item", "rating", "timestamp")) 
 #notes: user & item numbers are 0 based.
 
-#See pins issue: https://github.com/rstudio/pins/issues/271
 url <-  "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/ml-1m.test.rating"
 test_data <- pins::pin(url) 
 test_rating   <- read_tsv(test_data[str_detect(test_data, "rating")], 
@@ -28,7 +27,7 @@ test_negative <- read_tsv(test_data[str_detect(test_data, "negative")],
                           col_names = FALSE) %>% 
   extract(X1, into = c("user", "pos_item"), "([[:alnum:]]+),([[:alnum:]]+)")
 
-
+#See pins issue: https://github.com/rstudio/pins/issues/271
 #url <- "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/ml-1m.test.negative"
 #test_negative <- read_tsv(pins::pin(url), 
 #                          col_names = FALSE) #TODO: check that these column names are accurate. I just guessed.
@@ -59,17 +58,17 @@ mlp_user_embedding <- layer_input(shape=c(num_users)) %>%
 mlp_item_embedding <- layer_input(shape=c(num_items)) %>% 
   layer_embedding(input_dim = num_items, output_dim = mlp_embedding_dim)
 
-mlp_branch <- layer_concatenate(list(mlp_user_embedding, 
-                                     mlp_item_embedding)) %>%
+mlp_branch <- layer_concatenate(list(mlp_user_embedding, mlp_item_embedding)) %>%
   layer_dense(units = 4*capacity, activation = "relu") %>%
   layer_dense(units = 2*capacity, activation = "relu") %>%
-  layer_dense(units =   capacity, activation = "relu") 
+  layer_dense(units = capacity, activation = "relu") 
 
 
 # NeuMF -------------------------------------------------------------------
 
-layer_concatenate(list(gmf_branch, mlp_branch)) %>%
-  activation_sigmoid() #TODO: or dense with activation sigmoid?
+model <- layer_concatenate(list(gmf_branch, mlp_branch), trainable = TRUE) %>%
+  layer_activation(activation_sigmoid()) %>%
+  layer_dense(units = 1)    
 
 
 # Compile and Fit model ---------------------------------------------------
