@@ -43,9 +43,9 @@ capacity <- 32
 
 gmf_embedding_dim <- 2*capacity 
 mf_user_embedding <- layer_input(shape=1) %>%  #pass in user indexes (not binary vectors)
-  layer_embedding(input_dim = gmf_embedding_dim, output_dim = num_users) 
+  layer_embedding(input_dim = num_users, output_dim = gmf_embedding_dim) 
 mf_item_embedding <- layer_input(shape=1) %>%  #pass in item indexes (not binary vectors)
-  layer_embedding(input_dim = gmf_embedding_dim, output_dim = num_items) 
+  layer_embedding(input_dim = num_items, output_dim = gmf_embedding_dim) 
 
 gmf_branch <- layer_multiply(list(mf_user_embedding, mf_item_embedding))
 
