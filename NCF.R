@@ -42,10 +42,10 @@ capacity <- 32
 # GMF ---------------------------------------------------------------------
 
 gmf_embedding_dim <- 2*capacity 
-mf_user_embedding <- layer_input(shape=c(num_users)) %>% 
-  layer_embedding(input_dim = num_users, output_dim = gmf_embedding_dim)
-mf_item_embedding <- layer_input(c(num_items)) %>% 
-  layer_embedding(input_dim = num_items, output_dim = gmf_embedding_dim)
+mf_user_embedding <- layer_input(shape=1) %>%  #pass in user indexes (not binary vectors)
+  layer_embedding(input_dim = gmf_embedding_dim, output_dim = num_users) 
+mf_item_embedding <- layer_input(shape=1) %>%  #pass in item indexes (not binary vectors)
+  layer_embedding(input_dim = gmf_embedding_dim, output_dim = num_items) 
 
 gmf_branch <- layer_multiply(list(mf_user_embedding, mf_item_embedding))
 
@@ -53,9 +53,9 @@ gmf_branch <- layer_multiply(list(mf_user_embedding, mf_item_embedding))
 # MLP ---------------------------------------------------------------------
 
 mlp_embedding_dim <- 2*capacity
-mlp_user_embedding <- layer_input(shape=c(num_users)) %>% 
+mlp_user_embedding <- layer_input(shape=1) %>% 
   layer_embedding(input_dim = num_users, output_dim = mlp_embedding_dim)
-mlp_item_embedding <- layer_input(shape=c(num_items)) %>% 
+mlp_item_embedding <- layer_input(shape=1) %>% 
   layer_embedding(input_dim = num_items, output_dim = mlp_embedding_dim)
 
 mlp_branch <- layer_concatenate(list(mlp_user_embedding, mlp_item_embedding)) %>%
@@ -67,20 +67,28 @@ mlp_branch <- layer_concatenate(list(mlp_user_embedding, mlp_item_embedding)) %>
 # NeuMF -------------------------------------------------------------------
 
 model <- layer_concatenate(list(gmf_branch, mlp_branch), trainable = TRUE) %>%
-  layer_activation(activation_sigmoid()) %>%
-  layer_dense(units = 1)    
+  layer_dense(units = 1, activation = "sigmoid")    
 
 
 # Compile and Fit model ---------------------------------------------------
 
 model %>% compile(
   optimizer = "adam",
-  loss = "binary_crossentropy"
+  loss = "binary_crossentropy",
+  metrics = c("accuracy") #TODO: add my own here? HR and NDCG.
 )
 
-model %>% fit()
+history <- model %>% fit(
+  x_train,
+  y_train,
+  epochs = 10,
+  batch_size = TODO, #what did paper use?
+  validation_data = list(x_val, y_val)
+)
 
-model %>% evaluate()
+plot(hisotry)
+
+(results <- model %>% evaluate(x_test, y_test))
 
 
 
