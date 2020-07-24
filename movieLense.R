@@ -27,7 +27,7 @@ test_negative <- read_tsv(test_data[str_detect(test_data, "negative")],
 #See pins issue: https://github.com/rstudio/pins/issues/271
 #url <- "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/ml-1m.test.negative"
 #test_negative <- read_tsv(pins::pin(url), 
-#                          col_names = FALSE) #TODO: check that these column names are accurate. I just guessed.
+#                          col_names = FALSE) 
 
 # Variable definitions ----------------------------------------------------
 
@@ -46,7 +46,7 @@ source("NCF.R")
 
 # Test set
 test <- test_negative %>% 
-  extract(X1, into = c("user", "pos_item"), "([[:alnum:]]+),([[:alnum:]]+)", convert = TRUE) %>%
+  tidyr::extract(X1, into = c("user", "pos_item"), "([[:alnum:]]+),([[:alnum:]]+)", convert = TRUE) %>%
   pivot_longer(cols = pos_item:X100, names_to = "label", values_to = "item") %>%
   mutate(label = as.integer(!str_detect(label,"X")))
 test_x <- test %>% select(user, item)
@@ -93,17 +93,20 @@ train_x %<>% select(-label)
 history <- 
   model %>% 
   fit(
-    list(user_input = train_x$user, item_input = train_x$item),
-    train_y$label,
+    x = list(user_input = as.array(train_x$user), 
+         item_input = as.array(train_x$item)),
+    y = as.array(train_y$label),
     epochs = 10,
     batch_size = 128,
-    validation_data = list(list(validation_x$user, validation_x$item), validation_y)
+    validation_data = list(list(user_input = as.array(validation_x$user), 
+                                item_input = as.array(validation_x$item)), 
+                           as.array(validation_y))
   ) 
 
 
 # Evaluate results --------------------------------------------------------
 
-plot(hisotry)
+plot(history)
 
 (results <- model %>% evaluate(list(test_x$user, test_x$item), test_y))
 

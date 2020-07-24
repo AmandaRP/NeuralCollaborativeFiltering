@@ -18,15 +18,15 @@ capacity <- 32
 # Define network inputs -----------------------------------------------------------
 
 #pass in user/item indexes (not one-hot vectors) b/c this is required by embedding layer
-user_input <- layer_input(shape=1) 
-item_input <- layer_input(shape=1)
+user_input <- layer_input(shape=1, name = "user_input") 
+item_input <- layer_input(shape=1, name = "item_input")
 
 # GMF ---------------------------------------------------------------------
 
 gmf_embedding_dim <- 2*capacity 
 gmf_user_embedding <- 
   user_input %>%  
-  layer_embedding(input_dim = num_users, output_dim = gmf_embedding_dim) #TODO: Is the input dim correct here?
+  layer_embedding(input_dim = num_users, output_dim = gmf_embedding_dim) #TODO: Is the input dim correct here? Should it be num_users?
 gmf_item_embedding <- 
   item_input %>%
   layer_embedding(input_dim = num_items, output_dim = gmf_embedding_dim) 
