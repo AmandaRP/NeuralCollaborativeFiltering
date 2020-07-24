@@ -12,6 +12,7 @@ library(keras)
 
 # Variable definitions ----------------------------------------------------
 
+# Number of neurons in the last (smallest) layer of the MLP
 capacity <- 32  
 
 # Define network inputs -----------------------------------------------------------
@@ -50,15 +51,15 @@ mlp_branch <-
 
 # NeuMF -------------------------------------------------------------------
 
-output <- 
+label <- 
   layer_concatenate(list(gmf_branch, mlp_branch), trainable = TRUE) %>%
   layer_dense(units = 1, activation = "sigmoid")    
 
-#Next step needed for non-sequential models
-model <- keras_model(list(user_input, item_input), output)
+# Need to specify inputs and outputs for non-sequential models
+model <- keras_model(list(user_input, item_input), label)
 
 
-# Compile and Fit model ---------------------------------------------------
+# Compile model ---------------------------------------------------
 
 model %>% compile(
   optimizer = "adam",
@@ -66,19 +67,6 @@ model %>% compile(
   metrics = c("accuracy") #TODO: add my own here? HR and NDCG.
 )
 
-history <- 
-  model %>% 
-  fit(
-    x_train,
-    y_train,
-    epochs = 10,
-    batch_size = TODO, #what did paper use?
-    validation_data = list(x_val, y_val)
-  ) 
-
-plot(hisotry)
-
-(results <- model %>% evaluate(x_test, y_test))
 
 
 
