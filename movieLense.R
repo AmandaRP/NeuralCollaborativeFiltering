@@ -93,12 +93,14 @@ history <-
     batch_size = 1024, #paper used 128
     validation_data = list(list(user_input = as.array(validation$user), 
                                 item_input = as.array(validation$item)), 
-                           as.array(validation$label))
+                           as.array(validation$label)),
+    callbacks = list(callback_early_stopping(patience = 2))
   ) 
 
 
 # Evaluate results --------------------------------------------------------
 
+history
 plot(history)
 
 (results <- model %>% evaluate(list(test$user, test$item), test$label))
