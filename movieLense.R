@@ -17,10 +17,10 @@ url <- "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/
 train_rating <- read_tsv(pins::pin(url), 
                          col_names = c("user","item", "rating", "timestamp")) 
 
-url <-  "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/ml-1m.test.rating"
+url <-  "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/ml-1m.test.negative"
 test_data <- pins::pin(url) 
-test_rating   <- read_tsv(test_data[str_detect(test_data, "rating")], 
-                          col_names = c("user","item", "rating", "timestamp"))
+#test_rating   <- read_tsv(test_data[str_detect(test_data, "rating")], 
+#                          col_names = c("user","item", "rating", "timestamp"))
 test_negative <- read_tsv(test_data[str_detect(test_data, "negative")], 
                           col_names = FALSE) 
 
@@ -49,8 +49,6 @@ test <- test_negative %>%
   tidyr::extract(X1, into = c("user", "pos_item"), "([[:alnum:]]+),([[:alnum:]]+)", convert = TRUE) %>%
   pivot_longer(cols = pos_item:X100, names_to = "label", values_to = "item") %>%
   mutate(label = as.integer(!str_detect(label,"X")))
-test_x <- test %>% select(user, item)
-test_y <- test %>% select(label)
 
 # Get number of training ratings per user (will need for sampling negatives)
 num_ratings_per_user <- train_rating %>% group_by(user) %>% count()
@@ -60,7 +58,7 @@ train_negative <-
   data.frame(user = rep(0:(num_users-1), each=num_items), 
              item = 0:(num_items-1)) %>% # start by listing all user/item pairs 
   anti_join(train_rating) %>% # remove user/item pairs that are in positive training set 
-  anti_join(test_x) %>%       # remove user/item pairs that are in test set
+  anti_join(test) %>%       # remove user/item pairs that are in test set
   group_by(user) %>%  # Remaining operations used for sampling some of the negatives based on chosen negative to positive ratio
   nest() %>%
   inner_join(num_ratings_per_user) %>%
@@ -69,23 +67,18 @@ train_negative <-
   unnest(cols = c(subsamp))
   
 # Define validation data by picking the most recent rating for each user from training
-validation_x <- train_rating %>% 
+validation <- train_rating %>% 
   group_by(user) %>% 
   slice_max(timestamp) %>% 
   slice_sample(1) %>% #some user/item pairs have same timestamp, so randomly pick one
-  select(user, item)
-
-# Only positive class was sampled for validation. See section 4.1 of NCF paper.
-validation_y <- rep(1, nrow(validation_x))
+  select(user, item) %>%
+  add_column(label = 1)  # Only positive class was sampled for validation. See section 4.1 of NCF paper.
 
 # Define training as data not used for validation
-train_x <- anti_join(train_rating, validation_x) %>% 
+train <- anti_join(train_rating, validation) %>% 
   select(user, item) %>%
-  bind_rows("pos" = ., "neg" = train_negative, .id = "label")
-train_y <- train_x %>% 
-  select(label) %>% 
+  bind_rows("pos" = ., "neg" = train_negative, .id = "label") %>%
   mutate(label = as.integer(str_detect(label,"pos")))
-train_x %<>% select(-label)
 
 
 # Train model -------------------------------------------------------------
@@ -93,14 +86,14 @@ train_x %<>% select(-label)
 history <- 
   model %>% 
   fit(
-    x = list(user_input = as.array(train_x$user), 
-         item_input = as.array(train_x$item)),
-    y = as.array(train_y$label),
+    x = list(user_input = as.array(train$user), 
+         item_input = as.array(train$item)),
+    y = as.array(train$label),
     epochs = 10,
-    batch_size = 128,
-    validation_data = list(list(user_input = as.array(validation_x$user), 
-                                item_input = as.array(validation_x$item)), 
-                           as.array(validation_y))
+    batch_size = 1024, #paper used 128
+    validation_data = list(list(user_input = as.array(validation$user), 
+                                item_input = as.array(validation$item)), 
+                           as.array(validation$label))
   ) 
 
 
@@ -108,7 +101,7 @@ history <-
 
 plot(history)
 
-(results <- model %>% evaluate(list(test_x$user, test_x$item), test_y))
+(results <- model %>% evaluate(list(test$user, test$item), test$label))
 
 
 # Make predictions --------------------------------------------------------
