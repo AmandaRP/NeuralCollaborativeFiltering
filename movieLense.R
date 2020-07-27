@@ -103,10 +103,24 @@ history <-
 history
 plot(history)
 
+# Evaluate returns same metrics that were defined in the compile (accuracy in this case)
 (results <- model %>% evaluate(list(test$user, test$item), test$label))
 
+# Get predictions for test set:
+test_pred <- model %>% 
+  predict(x = list(test$user, test$item)) %>%
+  bind_cols(pred = ., test)
 
-# Make predictions --------------------------------------------------------
+# Compute hit rate and ndcg
+source("evaluation.R")
+compute_hr(test_pred, 10)
+compute_ndcg(test_pred, 10)
+
+  
+
+
+
+
 
 
 
