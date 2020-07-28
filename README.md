@@ -1,10 +1,11 @@
 Neural Collaborative Filtering
 ================
 
-This is an implementation of NCF using [R
-Keras](https://keras.rstudio.com/index.html). The model (a deep neural
-network for binary implicit feedback) is described in the following
-paper and implemented by its authors using Keras (see [this GitHub
+This is an implementation of Neural Collaborative Filtering (NCF) using
+[R Keras](https://keras.rstudio.com/index.html). The model (a deep
+neural network for binary implicit feedback) is described in the
+following paper and implemented by its authors using Keras (see [this
+GitHub
 repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
 
 > Xiangnan He, Lizi Liao, Hanwang Zhang, Liqiang Nie, Xia Hu and
