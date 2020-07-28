@@ -12,19 +12,18 @@ library(keras)
 
 # Variable definitions ----------------------------------------------------
 
-# Number of neurons in the last (smallest) layer of the MLP
-capacity <- 32  
+# Embedding dimensions
+gmf_embedding_dim <- 64  
+mlp_embedding_dim <- 64
 
 # Define network inputs -----------------------------------------------------------
 
 #pass in user/item indexes (not one-hot vectors) b/c this is required by embedding layer
 user_input <- layer_input(shape=1, name = "user_input") 
 item_input <- layer_input(shape=1, name = "item_input")
-#TODO: How are each of these sampled? Are both vectors sampled simultaneously so that the items are associated with the correct user?
 
 # GMF ---------------------------------------------------------------------
 
-gmf_embedding_dim <- 2*capacity 
 gmf_user_embedding <- 
   user_input %>%  
   layer_embedding(input_dim = num_users, # "dictionary" size
@@ -33,7 +32,7 @@ gmf_user_embedding <-
                   #embeddings_regularizer = "TODO", #Want to use L2 here. Do for all embeddings.
                   input_length = 1,  # the length of the sequence that is being fed in (one integer)
                   name = "gmf_user_embedding") 
-#Embedding is a 3D tensor. Need to convert to 2D to feed into dense layer
+#Embedding is a 3D tensor. Need to convert to 2D to feed into dense layer:
 gmf_user_latent <- gmf_user_embedding %>% layer_flatten(name = "gmf_user_latent")
 
 gmf_item_embedding <- 
@@ -49,8 +48,6 @@ gmf_item_latent <- gmf_item_embedding %>% layer_flatten(name = "gmf_item_latent"
 gmf_branch <- layer_multiply(list(gmf_user_latent, gmf_item_latent))
 
 # MLP ---------------------------------------------------------------------
-
-mlp_embedding_dim <- 2*capacity
 
 mlp_user_embedding <- 
   user_input %>% 
@@ -74,9 +71,9 @@ mlp_item_latent <- mlp_item_embedding %>% layer_flatten(name = "mlp_item_latent"
 
 mlp_branch <- 
   layer_concatenate(list(mlp_user_latent, mlp_item_latent)) %>%
-  layer_dense(units = 4*capacity, activation = "relu", name = "mlp_layer1") %>% #TODO: add L2 regularization
-  layer_dense(units = 2*capacity, activation = "relu", name = "mlp_layer2") %>% #TODO: add L2 regularization
-  layer_dense(units =   capacity, activation = "relu", name = "mlp_layer3")     #TODO: add L2 regularization
+  layer_dense(units = 2 * gmf_embedding_dim, activation = "relu", name = "mlp_layer1") %>% #TODO: add L2 regularization
+  layer_dense(units =     gmf_embedding_dim, activation = "relu", name = "mlp_layer2") %>% #TODO: add L2 regularization
+  layer_dense(units = 0.5*gmf_embedding_dim, activation = "relu", name = "mlp_layer3")     #TODO: add L2 regularization
 
 
 # NeuMF -------------------------------------------------------------------
@@ -87,7 +84,7 @@ label <-
               kernel_initializer = "lecun_uniform",
               name = "prediction")    
 
-# Need to specify inputs and outputs for non-sequential models
+# For non-sequential models, need to specify inputs and outputs: 
 model <- keras_model(list(user_input, item_input), label)
 
 
@@ -96,7 +93,6 @@ model <- keras_model(list(user_input, item_input), label)
 model %>% compile(
   optimizer = "adam",
   loss = "binary_crossentropy", #TODO: Does this work with index inputs?
-  #shuffle = TRUE, #TODO: See if this will work.
   metrics = c("accuracy")
 )
 
