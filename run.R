@@ -1,8 +1,9 @@
-# This R script uses NCF to recommend movies to users based on implicit feedback
-# in the movie lense dataset.
+# Main script to run. Calls readData.R and NCF.R to read/wrangle data and build
+# model architecture. This script also trains the model and provides evaluation metrics.
 
 # Read and wrangle data: ----------------------------------------------------
 
+movielense <- TRUE # set to false to use pinterest data
 source("readData.R")
 
 # Define model --------------------------------------------------------------
