@@ -16,6 +16,12 @@ library(keras)
 gmf_embedding_dim <- 64  
 mlp_embedding_dim <- 64
 
+# Value to use for N(0, sigma) initializers
+sigma <- 0.01
+
+# Regularization parameter. Set to value > 0 to include regularization.
+lambda <- 0
+
 # Define network inputs -----------------------------------------------------------
 
 #pass in user/item indexes (not one-hot vectors) b/c this is required by embedding layer
@@ -28,8 +34,9 @@ gmf_user_embedding <-
   user_input %>%  
   layer_embedding(input_dim = num_users, # "dictionary" size
                   output_dim = gmf_embedding_dim,
-                  #embeddings_initializer = "TODO", #Want to use N(0,.01). Default is uniform. Do for all embeddings.  
-                  #embeddings_regularizer = "TODO", #Want to use L2 here. Do for all embeddings.
+                  embeddings_initializer = initializer_random_normal(0, sigma), # Use N(0,sigma) initialization  
+                  # Paper did not mention regularization, but it is included in authors' code. Note sure what value they used, but their default is 0.
+                  embeddings_regularizer = regularizer_l2(lambda), 
                   input_length = 1,  # the length of the sequence that is being fed in (one integer)
                   name = "gmf_user_embedding") 
 #Embedding is a 3D tensor. Need to convert to 2D to feed into dense layer:
@@ -39,8 +46,8 @@ gmf_item_embedding <-
   item_input %>%
   layer_embedding(input_dim = num_items, 
                   output_dim = gmf_embedding_dim,
-                  #embeddings_initializer = "TODO", #Want to use N(0,.01). Default is uniform. Do for all embeddings.  
-                  #embeddings_regularizer = "TODO", #Want to use L2 here. 
+                  embeddings_initializer = initializer_random_normal(0, sigma),   
+                  embeddings_regularizer = regularizer_l2(lambda),
                   input_length=1,
                   name = "gmf_item_embedding") 
 gmf_item_latent <- gmf_item_embedding %>% layer_flatten(name = "gmf_item_latent") 
@@ -53,8 +60,8 @@ mlp_user_embedding <-
   user_input %>% 
   layer_embedding(input_dim = num_users, 
                   output_dim = mlp_embedding_dim,
-                  #embeddings_initializer = "TODO", #Want to use N(0,.01). Default is uniform. Do for all embeddings.  
-                  #embeddings_regularizer = "TODO", #Want to use L2 here. 
+                  embeddings_initializer = initializer_random_normal(0, sigma), 
+                  embeddings_regularizer = regularizer_l2(lambda), 
                   input_length=1,
                   name = "mlp_user_embedding") 
 mlp_user_latent <- mlp_user_embedding %>% layer_flatten(name = "mlp_user_latent")
@@ -63,17 +70,26 @@ mlp_item_embedding <-
   item_input %>% 
   layer_embedding(input_dim = num_items, 
                   output_dim = mlp_embedding_dim,
-                  #embeddings_initializer = "TODO", #Want to use N(0,.01). Default is uniform. Do for all embeddings.  
-                  #embeddings_regularizer = "TODO", #Want to use L2 here. 
+                  embeddings_initializer = initializer_random_normal(0, sigma), 
+                  embeddings_regularizer = regularizer_l2(lambda), 
                   input_length=1,
                   name = "mlp_item_embedding") 
 mlp_item_latent <- mlp_item_embedding %>% layer_flatten(name = "mlp_item_latent") 
 
 mlp_branch <- 
   layer_concatenate(list(mlp_user_latent, mlp_item_latent)) %>%
-  layer_dense(units = 2 * gmf_embedding_dim, activation = "relu", name = "mlp_layer1") %>% #TODO: add L2 regularization
-  layer_dense(units =     gmf_embedding_dim, activation = "relu", name = "mlp_layer2") %>% #TODO: add L2 regularization
-  layer_dense(units = 0.5*gmf_embedding_dim, activation = "relu", name = "mlp_layer3")     #TODO: add L2 regularization
+  layer_dense(units = 2 * gmf_embedding_dim, 
+              activation = "relu", 
+              kernel_regularizer = regularizer_l2(lambda),
+              name = "mlp_layer1") 
+  layer_dense(units = gmf_embedding_dim, 
+              activation = "relu", 
+              kernel_regularizer = regularizer_l2(lambda),
+              name = "mlp_layer2") %>% 
+  layer_dense(units = 0.5*gmf_embedding_dim, 
+              activation = "relu", 
+              kernel_regularizer = regularizer_l2(lambda),
+              name = "mlp_layer3")     
 
 
 # NeuMF -------------------------------------------------------------------
@@ -92,7 +108,7 @@ model <- keras_model(list(user_input, item_input), label)
 
 model %>% compile(
   optimizer = "adam",
-  loss = "binary_crossentropy", #TODO: Does this work with index inputs?
+  loss = "binary_crossentropy", 
   metrics = c("accuracy")
 )
 
