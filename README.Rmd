@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-This is an implementation of NCF using [R Keras](https://keras.rstudio.com/index.html). The model (a deep neural network for binary implicit feedback) is described in the following paper and implemented by its authors using Keras (see [this GitHub repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
+This is an implementation of Neural Collaborative Filtering (NCF) using [R Keras](https://keras.rstudio.com/index.html). The model (a deep neural network for binary implicit feedback) is described in the following paper and implemented by its authors using Keras (see [this GitHub repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
 
 
 > Xiangnan He, Lizi Liao, Hanwang Zhang, Liqiang Nie, Xia Hu and Tat-Seng Chua (2017). [Neural Collaborative Filtering](https://dl.acm.org/doi/10.1145/3038912.3052569). In Proceedings of WWW '17, Perth, Australia, April 03-07, 2017.

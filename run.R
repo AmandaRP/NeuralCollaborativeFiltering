@@ -18,6 +18,7 @@ callback_list <- list(
   callback_model_checkpoint(filepath = "model.h5", monitor = "val_loss", save_best_only = TRUE)
 )
   
+# Train model
 history <- 
   model %>% 
   fit(

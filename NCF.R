@@ -1,4 +1,4 @@
-# This R script implements neural collaborative filtering using R Keras. Returns a model.
+# This script implements neural collaborative filtering using R Keras. Returns a model.
 
 # Depends on the following variables derived from data: num_users, num_items
 

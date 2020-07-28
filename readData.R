@@ -5,9 +5,9 @@
 # notes: 
 # - Pinterest (pinterest-20) and Movie Lense (ml-1m) data
 # - user & item indexes are 0 based.
-# - ml-1m.train.rating contains user/item/rating triplets (plus a timestamp)
-# - ml-1m.test.negative contains a list of 100 negatives and one positive for each user
-# - ml-1m.test.rating contains user/item/rating triplets (plus a timestamp) for 
+# - train.rating contains user/item/rating triplets (plus a timestamp)
+# - test.negative contains a list of 100 negatives and one positive for each user
+# - test.rating contains user/item/rating triplets (plus a timestamp) for 
 #   each user's single rating in ml-1m.test.negative. 
 
 if(movielense){
