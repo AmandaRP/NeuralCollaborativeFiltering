@@ -102,7 +102,7 @@ history <-
 # Evaluate results --------------------------------------------------------
 
 history
-plot(history)
+#plot(history)
 
 # Evaluate returns same metrics that were defined in the compile (accuracy in this case)
 (results <- model %>% evaluate(list(test$user, test$item), test$label))
