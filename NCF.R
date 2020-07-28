@@ -1,4 +1,6 @@
-# This R script implements neural collaborative filtering using R Keras.
+# This R script implements neural collaborative filtering using R Keras. Returns a model.
+
+# Depends on the following variables derived from data: num_users, num_items
 
 # Load libraries ----------------------------------------------------------
 
@@ -81,7 +83,7 @@ mlp_branch <-
   layer_dense(units = 2 * gmf_embedding_dim, 
               activation = "relu", 
               kernel_regularizer = regularizer_l2(lambda),
-              name = "mlp_layer1") 
+              name = "mlp_layer1") %>%
   layer_dense(units = gmf_embedding_dim, 
               activation = "relu", 
               kernel_regularizer = regularizer_l2(lambda),
@@ -96,7 +98,8 @@ mlp_branch <-
 
 label <- 
   layer_concatenate(list(gmf_branch, mlp_branch)) %>%
-  layer_dense(units = 1, activation = "sigmoid", 
+  layer_dense(units = 1, 
+              activation = "sigmoid", 
               kernel_initializer = "lecun_uniform",
               name = "prediction")    
 
