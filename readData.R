@@ -10,9 +10,12 @@
 # - ml-1m.test.rating contains user/item/rating triplets (plus a timestamp) for 
 #   each user's single rating in ml-1m.test.negative. 
 
+if(movielense){
+  file_prefix <- "ml-1m"  
+}else{
+  file_prefix <- "pinterest-20"   
+}
 
-file_prefix <- "pinterest-20"
-#file_prefix <- "ml-1m"
 base_name <- str_c("https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/", file_prefix)
 
 url <- str_c(base_name, ".train.rating")
@@ -36,7 +39,7 @@ test_negative <- read_tsv(test_data[str_detect(test_data, "negative")],
 
 num_users <- max(train_rating$user) + 1
 num_items <- max(train_rating$item) + 1
-neg_pos_ratio_train <- 4 # Ratio of negative training samples to positive to select for training
+neg_pos_ratio_train <- 4 # Ratio of negative training samples to positive to select for training. NCF authors used 4.
 
 
 # Data wrangling ----------------------------------------------------------
