@@ -94,6 +94,7 @@ history <-
     validation_data = list(list(user_input = as.array(validation$user), 
                                 item_input = as.array(validation$item)), 
                            as.array(validation$label)),
+    shuffle = TRUE, #TODO: See if this will work.
     callbacks = list(callback_early_stopping(patience = 2))
   ) 
 
@@ -116,7 +117,7 @@ source("evaluation.R")
 compute_hr(test_pred, 10)
 compute_ndcg(test_pred, 10)
 
-  
+
 
 
 
