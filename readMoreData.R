@@ -3,7 +3,9 @@
 library(jsonlite)
 library(lubridate)
 library(magrittr)
-  
+library(purrr)
+
+
 
 # Rent the Runway data ----------------------------------------------------
 
@@ -53,36 +55,33 @@ interactions <- read_csv("/home/rstudio/goodreads_interactions.csv", col_names =
 book_id_map <- read_csv("/home/rstudio/book_id_map.csv", col_names = TRUE)
 user_id_map <- read_csv("/home/rstudio/user_id_map.csv", col_names = TRUE)
 
-#TODO: Filter goodreads_books.json to just Christian & fiction (too big to keep everything). 
-#      see stream_in help file to see how to do this on the fly.
-#book_info <- jsonlite::stream_in(file("/home/rstudio/goodreads_books.json")) %>% as_tibble()      #full dataset
+book_info <- jsonlite::stream_in(file("/home/rstudio/goodreads_books_small.json")) %>% as_tibble() #small test file
+
+# Filter full book info dataset by genre (because it's too large)
+genre_string = "christian"
 con_in <- file("/home/rstudio/goodreads_books.json")
 con_out <- file(tmp <- tempfile(), open = "wb")
 stream_in(con_in, handler = function(df){
   df %<>%
-    mutate(christian = map(popular_shelves, str_detect, pattern = "christian")) %>%
-    mutate(christian = map_lgl(christian, any)) %>%
-    filter(christian)
+    mutate(genre = map(popular_shelves, str_detect, pattern = genre_string)) %>%
+    mutate(genre = map_lgl(genre, any)) %>%
+    filter(genre)
   stream_out(df, con_out, pagesize = 1000)
 }, pagesize = 5000)
 close(con_out)
 # stream it back in
-christian_book_info <- stream_in(file(tmp))
-nrow(christian_book_info)
+book_info <- stream_in(file(tmp)) %>% as_tibble()
+nrow(book_info)
 unlink(tmp)
-save(christian_book_info, file = "goodreads_books_christian.RData")
+#Save data to disk:
+save(book_info, file = sprintf("goodreads_books_%s.RData", genre_string)) #TODO: tar this up to see if I can put it on GitHub
 
-book_info <- jsonlite::stream_in(file("/home/rstudio/goodreads_books_small.json")) %>% as_tibble() #small test file
+
 
 book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -work_id)
 book_info %<>% select(book_id, title, popular_shelves:image_url)
+book_info %<>%
+  mutate_at(c("book_id", "num_pages", "publication_year"), as.integer) %>%
+  mutate_at(c("average_rating"), as.numeric)
 
-library(purrr)
 
-temp <- book_info %>%
-  #mutate(shelf_names = map(popular_shelves, ~ .x %>% select(name))) %>%
-  mutate(religion = map(popular_shelves, str_detect, pattern = "religion")) %>%
-  mutate(religion = map_lgl(religion, any)) %>%
-  filter(religion)
-  #select(-shelf_names)
-View(temp)
