@@ -77,6 +77,8 @@ unlink(tmp)
 save(book_info, file = sprintf("goodreads_books_%s.RData", genre_string)) #TODO: tar this up to see if I can put it on GitHub
 
 
+# Read genre book info data from gz file in Data directory:
+book_info <- jsonlite::stream_in(gzcon(file("Data/goodreads_books_christian.tar.gz")))
 
 book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -work_id)
 book_info %<>% select(book_id, title, popular_shelves:image_url)
