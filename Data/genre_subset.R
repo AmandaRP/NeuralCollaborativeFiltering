@@ -1,5 +1,9 @@
 # Function to filter full book info dataset by genre (because it's too large)
-# Instructions: Download goodreads_books.___ from ___ 
+# Instructions: 
+#   1. Download goodreads_books.json.gz from the link provided at https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/books?authuser=0 
+#   2. Unpack the file using: 
+#      gunzip goodreads_books.json.gz
+#   3. Specify the filepath for the resulting json file when using the genre_subset function. See example at bottom of this script.
 
 genre_subset <- function(genre, file_path, save_to_disk = FALSE){
   con_in <- file(file_path)
