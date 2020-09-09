@@ -5,6 +5,12 @@
 #      gunzip goodreads_books.json.gz
 #   3. Specify the filepath for the resulting json file when using the genre_subset function. See example at bottom of this script.
 
+library(jsonlite)
+library(tidyverse)
+library(magrittr)
+library(purrr)
+
+
 genre_subset <- function(genre, file_path, save_to_disk = FALSE){
   con_in <- file(file_path)
   con_out <- file(tmp <- tempfile(), open = "wb")
