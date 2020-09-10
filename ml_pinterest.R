@@ -1,4 +1,4 @@
-# This script reads and wrangles the data: Movie Lense and Pinterest
+# Build NCF model for MovieLens and Pinterest datasets
 
 # Read data ---------------------------------------------------------------
 
@@ -10,6 +10,7 @@
 # - test.rating contains user/item/rating triplets (plus a timestamp) for 
 #   each user's single rating in ml-1m.test.negative. 
 
+movielense <- TRUE #set to F for pinterest data
 if(movielense){
   file_prefix <- "ml-1m"  
 }else{
@@ -70,7 +71,7 @@ train_negative <-
 validation <- train_rating %>% 
   group_by(user) %>% 
   slice_max(timestamp) %>% 
-  slice_sample(1) %>% #some user/item pairs have same timestamp, so randomly pick one
+  slice_sample(n = 1) %>% #some user/item pairs have same timestamp, so randomly pick one
   select(user, item) %>%
   add_column(label = 1)  # Only positive class was sampled for validation. See section 4.1 of NCF paper.
 
@@ -79,3 +80,61 @@ train <- anti_join(train_rating, validation) %>%
   select(user, item) %>%
   bind_rows("pos" = ., "neg" = train_negative, .id = "label") %>%
   mutate(label = as.integer(str_detect(label,"pos")))
+
+
+
+# Define model ------------------------------------------------------------
+
+source("NCF.R")
+model <- ncf_model(num_users = max(train_rating$user) + 1, 
+                   num_items = max(train_rating$user) + 1)
+
+
+# Train model -------------------------------------------------------------
+
+# First define callbacks to stop model early when validation loss increases and to save best model
+callback_list <- list(
+  callback_early_stopping(patience = 2),
+  callback_model_checkpoint(filepath = "model.h5", 
+                            monitor = "val_loss", 
+                            save_best_only = TRUE)
+)
+
+# Train model
+history <- 
+  model %>% 
+  fit(
+    x = list(user_input = as.array(train$user), 
+             item_input = as.array(train$item)),
+    y = as.array(train$label),
+    epochs = 10,
+    batch_size = 2048, 
+    validation_data = list(list(user_input = as.array(validation$user), 
+                                item_input = as.array(validation$item)), 
+                           as.array(validation$label)),
+    shuffle = TRUE, 
+    callbacks = callback_list
+  ) 
+
+# Load best model:
+model <- load_model_hdf5("model.h5")
+
+
+
+# Evaluate results --------------------------------------------------------
+
+history
+#plot(history)
+
+# Evaluate returns same metrics that were defined in the compile (accuracy in this case)
+(results <- model %>% evaluate(list(test$user, test$item), test$label))
+
+# Get predictions for test set:
+test_pred <- model %>% 
+  predict(x = list(test$user, test$item)) %>%
+  bind_cols(pred = ., test)
+
+# Compute hit rate and ndcg
+source("evaluation.R")
+compute_hr(test_pred, 10)
+compute_ndcg(test_pred, 10)
