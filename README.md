@@ -13,16 +13,11 @@ repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
 > Filtering](https://dl.acm.org/doi/10.1145/3038912.3052569). In
 > Proceedings of WWW ’17, Perth, Australia, April 03-07, 2017.
 
-## To start
+## Examples
 
-Run the code in “run.R”– it will source the necessary scripts, fit the
-model, and provide evaluation metrics.
-
-## Data
-
-Two datasets are provided by the NCF paper authors on their [GitHub
-repo](https://github.com/hexiangnan/neural_collaborative_filtering/tree/master/Data):
-Movie Lense and Pinterest, both of which are described in detail in
-their paper. The “readData.R” scipt (which is called by “run.R”) will
-read the data. You can choose between the two datasets via the
-`movielense` flag in “run.R”.
+1.  Two datasets are provided by the NCF paper authors in their [GitHub
+    repo](https://github.com/hexiangnan/neural_collaborative_filtering/tree/master/Data):
+    Movie Lense and Pinterest, both of which are described in detail in
+    their paper. See the `ml_pinterest.R` script in this repo. Choose
+    between the two datasets via the `movielense` flag.
+2.  Coming soon: Book recommendations from GoodReads
