@@ -1,5 +1,8 @@
 # Build NCF model for MovieLens and Pinterest datasets
 
+library(tidyverse)
+library(pins)
+
 # Read data ---------------------------------------------------------------
 
 # notes: 
@@ -10,7 +13,7 @@
 # - test.rating contains user/item/rating triplets (plus a timestamp) for 
 #   each user's single rating in ml-1m.test.negative. 
 
-movielense <- TRUE #set to F for pinterest data
+movielense <- FALSE #set to F for pinterest data
 if(movielense){
   file_prefix <- "ml-1m"  
 }else{
@@ -52,32 +55,40 @@ test <- test_negative %>%
   mutate(label = as.integer(!str_detect(label,"X")))
 
 # Get number of training ratings per user (will need for sampling negatives)
-num_ratings_per_user <- train_rating %>% group_by(user) %>% count()
+num_ratings_per_user <- train_rating %>% group_by(user) %>% count() %>% ungroup()
 
-# Define negatives (those movies that were not rated for each user) to use for training 
-# TODO: Redo this so that it doesn't take so much memory. Also, this sampling should be done for each epoch.
+# Sample negatives (those movies that were not rated for each user) to use for training 
+# TODO: Method below will likely be problematic for larger datasets. Also, this sampling should be done for each epoch..
+tictoc::tic()
 train_negative <- 
-  data.frame(user = rep(0:(num_users-1), each=num_items), 
-             item = 0:(num_items-1)) %>% # start by listing all user/item pairs 
-  anti_join(train_rating) %>% # remove user/item pairs that are in positive training set 
-  anti_join(test) %>%       # remove user/item pairs that are in test set
+  lazy_dt(data.frame(user = rep(0:(num_users-1), each=num_items), 
+             item = 0:(num_items-1))) %>% # start by listing all user/item pairs 
+  anti_join(bind_rows(train_rating, test))  %>% # remove user/item pairs that are in test and positive training sets 
+  as_tibble() %>% #because dtdplyr doesn't have nest functionality
   group_by(user) %>%  # Remaining operations used for sampling some of the negatives based on chosen negative to positive ratio
-  nest() %>%
+  nest() %>%  #TODO: use data.table function here so that we don't have to convert to tibble
+  lazy_dt() %>%
   inner_join(num_ratings_per_user) %>%
   mutate(subsamp = map2(data, n*neg_pos_ratio_train, ~slice_sample(.x, n=.y))) %>% 
   select(user, subsamp) %>%
+  as_tibble() %>%
   unnest(cols = c(subsamp))
+tictoc::toc() #ml dataset: 20 sec (dplyr,purrr), 14 sec (dtplyr) pinterest: 430 sec (dplyr), too long (dplyr, furrr), 147 sec for dtplyr
 
-train_negative <- array(NA, dim = num_users)
-for(u in 0:(num_users-1)){
-  x <- test %>% filter(user == u) 
-  y <- train_rating %>% filter(user == u) 
-  cnt <- num_ratings_per_user %>% filter(user == u) %>% ungroup() 
-  user_negative_items <- sample(setdiff(0:(num_items-1), c(x$item, y$item)), size = neg_pos_ratio_train * cnt$n) 
-  train_negative[[u+1]] <- list(0) #necessary to avoid error on next line
-  train_negative[[u+1]] <- tibble(user = rep(u, length(user_negative_items)), item =  user_negative_items)
-}
-train_negative <- bind_rows(unlist(train_negative))
+# Code below is an attempt to rewrite code above. However, it is currently too slow.
+# TODO: Implement the following in purrr/furrr. For-loop takes 230 seconds compared to method above, which takes 20 seconds (but is memory intensive.)
+#tictoc::tic()
+#train_negative <- list(NA, dim = num_users)
+#for(u in 0:(num_users-1)){
+#  x <- filter(test, user == u) 
+#  y <- filter(train_rating, user == u) 
+#  cnt <- filter(num_ratings_per_user, user == u) 
+#  sample_set <- setdiff(0:(num_items-1), c(x$item, y$item))
+#  user_negative_items <- sample(sample_set, size = min(neg_pos_ratio_train * cnt$n, length(sample_set)))
+#  train_negative[[u+1]] <- tibble(user = rep(u, length(user_negative_items)), item =  user_negative_items)
+#}
+#train_negative <- bind_rows(train_negative)
+#tictoc::toc() #238 seconds for ml dataset.
 
 
 # Define validation data by picking the most recent rating for each user from training
