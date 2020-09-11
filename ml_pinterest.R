@@ -2,7 +2,6 @@
 
 library(tidyverse)
 library(pins)
-library(reticulate)
 
 # Read data ---------------------------------------------------------------
 
