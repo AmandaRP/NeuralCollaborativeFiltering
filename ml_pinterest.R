@@ -55,6 +55,7 @@ test <- test_negative %>%
 num_ratings_per_user <- train_rating %>% group_by(user) %>% count()
 
 # Define negatives (those movies that were not rated for each user) to use for training 
+# TODO: Redo this so that it doesn't take so much memory. Also, this sampling should be done for each epoch.
 train_negative <- 
   data.frame(user = rep(0:(num_users-1), each=num_items), 
              item = 0:(num_items-1)) %>% # start by listing all user/item pairs 
@@ -66,6 +67,18 @@ train_negative <-
   mutate(subsamp = map2(data, n*neg_pos_ratio_train, ~slice_sample(.x, n=.y))) %>% 
   select(user, subsamp) %>%
   unnest(cols = c(subsamp))
+
+train_negative <- array(NA, dim = num_users)
+for(u in 0:(num_users-1)){
+  x <- test %>% filter(user == u) 
+  y <- train_rating %>% filter(user == u) 
+  cnt <- num_ratings_per_user %>% filter(user == u) %>% ungroup() 
+  user_negative_items <- sample(setdiff(0:(num_items-1), c(x$item, y$item)), size = neg_pos_ratio_train * cnt$n) 
+  train_negative[[u+1]] <- list(0) #necessary to avoid error on next line
+  train_negative[[u+1]] <- tibble(user = rep(u, length(user_negative_items)), item =  user_negative_items)
+}
+train_negative <- bind_rows(unlist(train_negative))
+
 
 # Define validation data by picking the most recent rating for each user from training
 validation <- train_rating %>% 
