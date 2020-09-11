@@ -1,0 +1,104 @@
+---
+title: "Scratch"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(pins)
+library(dtplyr)
+library(dplyr, warn.conflicts = FALSE)
+
+# Read data ---------------------------------------------------------------
+
+# notes: 
+# - Pinterest (pinterest-20) and Movie Lense (ml-1m) data
+# - user & item indexes are 0 based.
+# - train.rating contains user/item/rating triplets (plus a timestamp)
+# - test.negative contains a list of 100 negatives and one positive for each user
+# - test.rating contains user/item/rating triplets (plus a timestamp) for 
+#   each user's single rating in ml-1m.test.negative. 
+
+movielense <- FALSE #set to F for pinterest data
+if(movielense){
+  file_prefix <- "ml-1m"  
+}else{
+  file_prefix <- "pinterest-20"   
+}
+
+base_name <- str_c("https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/", file_prefix)
+
+url <- str_c(base_name, ".train.rating")
+train_rating <- read_tsv(pins::pin(url), 
+                         col_names = c("user","item", "rating", "timestamp")) 
+
+url <-  str_c(base_name, ".test.negative")
+test_data <- pins::pin(url) 
+#test_rating   <- read_tsv(test_data[str_detect(test_data, "rating")], 
+#                          col_names = c("user","item", "rating", "timestamp"))
+test_negative <- read_tsv(test_data[str_detect(test_data, "negative")], 
+                          col_names = FALSE) 
+
+#See pins issue: https://github.com/rstudio/pins/issues/271
+#url <- "https://github.com/hexiangnan/neural_collaborative_filtering/raw/master/Data/ml-1m.test.negative"
+#test_negative <- read_tsv(pins::pin(url), 
+#                          col_names = FALSE) 
+
+
+# Variable definitions ----------------------------------------------------
+
+num_users <- max(train_rating$user) + 1
+num_items <- max(train_rating$item) + 1
+neg_pos_ratio_train <- 4 # Ratio of negative training samples to positive to select for training. NCF authors used 4.
+
+
+# Data wrangling ----------------------------------------------------------
+
+# Test set
+test <- test_negative %>% 
+  tidyr::extract(X1, into = c("user", "pos_item"), "([[:alnum:]]+),([[:alnum:]]+)", convert = TRUE) %>%
+  pivot_longer(cols = pos_item:X100, names_to = "label", values_to = "item") %>%
+  mutate(label = as.integer(!str_detect(label,"X")))
+
+# Get number of training ratings per user (will need for sampling negatives)
+num_ratings_per_user <- train_rating %>% group_by(user) %>% count() %>% ungroup()
+
+```
+
+## R version of code in question
+
+```{r}
+# Sample negatives (those movies that were not rated for each user) to use for training 
+tictoc::tic()
+train_negative <- 
+  lazy_dt(data.frame(user = rep(0:(num_users-1), each=num_items), 
+             item = 0:(num_items-1))) %>% # start by listing all user/item pairs 
+  anti_join(bind_rows(train_rating, test))  %>% # remove user/item pairs that are in test and positive training sets 
+  as_tibble() %>% #because dtdplyr doesn't have nest functionality
+  group_by(user) %>%  # Remaining operations used for sampling some of the negatives based on chosen negative to positive ratio
+  nest() %>%  #TODO: use data.table function here so that we don't have to convert to tibble
+  lazy_dt() %>%
+  inner_join(num_ratings_per_user) %>%
+  mutate(subsamp = map2(data, n*neg_pos_ratio_train, ~slice_sample(.x, n=.y))) %>% 
+  select(user, subsamp) %>%
+  as_tibble() %>%
+  unnest(cols = c(subsamp))
+tictoc::toc() #147 sec using dtplyr
+
+```
+
+## Python version
+
+```{python}
+#TODO: Put list comprehension solution here and compare time
+
+train_negative = 
+
+```
+
