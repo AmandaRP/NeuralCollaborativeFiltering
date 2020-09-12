@@ -98,7 +98,9 @@ tictoc::toc() #147 sec using dtplyr
 ```{python}
 #TODO: Put list comprehension solution here and compare time
 
-train_negative = 
+for (x in 1:20) for (y in x:20) for (z in y:20) if (x^2 + y^2 == z^2) c(x, y, z))
+
+train_negative = [u for u in range(num_users-1) ]
 
 ```
 
