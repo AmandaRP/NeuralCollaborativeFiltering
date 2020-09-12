@@ -73,16 +73,18 @@ num_ratings_per_user <- train_rating %>% group_by(user) %>% count() %>% ungroup(
 
 ## R version of code in question
 
+Note that I may possibly be able to do the following using vectors/purrr/furrr.
+
 ```{r}
 # Sample negatives (those movies that were not rated for each user) to use for training 
 tictoc::tic()
 train_negative <- 
   lazy_dt(data.frame(user = rep(0:(num_users-1), each=num_items), 
-             item = 0:(num_items-1))) %>% # start by listing all user/item pairs 
-  anti_join(bind_rows(train_rating, test))  %>% # remove user/item pairs that are in test and positive training sets 
-  as_tibble() %>% #because dtdplyr doesn't have nest functionality
-  group_by(user) %>%  # Remaining operations used for sampling some of the negatives based on chosen negative to positive ratio
-  nest() %>%  #TODO: use data.table function here so that we don't have to convert to tibble
+                     item = 0:(num_items-1))) %>%   # start by listing all user/item pairs 
+  anti_join(bind_rows(train_rating, test))  %>%     # remove user/item pairs that are in test and positive training sets 
+  as_tibble() %>%     # because dtdplyr doesn't have nest functionality, TODO: use data.table function here so that we don't have to convert to tibble
+  group_by(user) %>%  
+  nest() %>%  
   lazy_dt() %>%
   inner_join(num_ratings_per_user) %>%
   mutate(subsamp = map2(data, n*neg_pos_ratio_train, ~slice_sample(.x, n=.y))) %>% 
@@ -98,9 +100,17 @@ tictoc::toc() #147 sec using dtplyr
 ```{python}
 #TODO: Put list comprehension solution here and compare time
 
-for (x in 1:20) for (y in x:20) for (z in y:20) if (x^2 + y^2 == z^2) c(x, y, z))
+import numpy as np
+import pandas as pd
 
-train_negative = [u for u in range(num_users-1) ]
+# Data needed:
+train = r.train_rating # positive ratings in the training set
+test  = r.test         # ratings in the test set
+num_ratings_per_user = r.num_ratings_per_user  # specifies number of positive samples that each user has in the training set
+neg_pos_ratio_train  = r.neg_pos_ratio_train   # An integer specifying the ratio of negative to positive examples (the paper uses 4)
+
+# Goal: Sample implicit negatives (user/item pairs) to be added to the training set. Exclude pairs already in test and train sets. 
+train_negative = 
 
 ```
 
