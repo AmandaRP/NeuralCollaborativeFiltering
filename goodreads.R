@@ -4,6 +4,8 @@
 
 library(tidyverse)
 library(magrittr)
+library(dtplyr)
+library(dplyr, warn.conflicts = FALSE)
 
 
 # Download GoodReads data ---------------------------------------------------------------
@@ -18,7 +20,7 @@ download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr"
 # Read data ---------------------------------------------------------------
 
 interactions <- read_csv(str_c(path, "goodreads_interactions.csv"), col_names = TRUE)
-book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE)
+book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) #Need for linking to book info dataset
 #user_id_map <- read_csv(str_c(path, "user_id_map.csv"), col_names = TRUE)
 
 # Use the Christian specific genre book information (available in Data folder):
@@ -30,7 +32,7 @@ system("rm goodreads_books_christian.RData")
 # Wrangle & filter data ---------------------------------------------------------
 
 # Clean up book_info:
-book_info <- christian_book_info #rename
+book_info <- christian_book_info #rename to be more generic
 rm(christian_book_info)
 book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -work_id)
 book_info %<>% select(book_id, title, popular_shelves:image_url) #reorder
@@ -81,7 +83,10 @@ interactions_positive <-
 
 # Remove users who did not have atleast THRESHOLD positives (not enough data to train)
 threshold <- 3
-users2keep <- interactions_positive %>% group_by(user_id) %>%  count() %>% filter(n >= threshold) %>% select(user_id)
+users2keep <- interactions_positive %>% 
+  group_by(user_id) %>%  
+  count() %>% filter(n >= threshold) %>% 
+  select(user_id)
 
 interactions_positive <- inner_join(interactions_positive, users2keep)
 interactions_filtered <- inner_join(interactions_filtered, users2keep)
@@ -95,18 +100,16 @@ interactions_negative <-
 
 # Compose Train/Validation/Test sets --------------------------------------
 
-#TODO: Sampling should be done for each epoch (but keep test set the same for each epoch)
-
-# Goals (following the paper):
+# Method (following the paper):
 # - Training: 4 negatives for every positive (for each user)
-# - DONE Validation: 1 positive (for each user) 
+# - Validation: 1 positive (for each user) 
 # - Test: 1 positive, 100 negative (for each user)
 
+# Positives:
 test_positive <- interactions_positive %>% group_by(user_id) %>% slice_sample(n = 1) 
 interactions_positive <- anti_join(interactions_positive, test_positive)
-
-validation_positive <- interactions_positive %>% group_by(user_id) %>% slice_sample(n = 1) 
-train_positive <- anti_join(interactions_positive, validation_positive) 
+validation <- interactions_positive %>% group_by(user_id) %>% slice_sample(n = 1) 
+train_positive <- anti_join(interactions_positive, validation) 
 
 # Calculate number of negative items that need sampled for test and training sets:
 neg_pos_ratio_train <- 4
@@ -122,7 +125,8 @@ interaction_cnt <-
   mutate(num_implicit_neg_2sample_4test = 100 - num_explicit_neg_2sample_4test) %>%
   mutate(num_implicit_neg_2sample_4train = (excess_neg < 0) * abs(excess_neg)) 
 
-# Put excess explicit negatives (up to 100) in test set: TODO: Should I keep all explicit negatives in training?
+# Put excess explicit negatives (up to 100) in test set: TODO: Should I keep all explicit negatives in training? This might be too much class imbalance.
+# Note: If dataset had timestamps, would be better to split on time instead of randomly
 test_negative <- interactions_negative %>% 
   group_by(user_id) %>%
   nest() %>%
@@ -134,15 +138,35 @@ test_negative <- interactions_negative %>%
 # Remaining explicit negatives go in training set:
 train_negative <- anti_join(interactions_negative, test_negative)
 
-# sample implicit negatives to fill out train and test sets
+
+# Sample implicit negatives to fill out train and test sets
+# TODO: Sample negatives with probability correlated to popularity (users probably already know about popular and didn't watch for a reason)
+# TODO: Sampling of negatives for training should be done for each epoch
+# TODO: Error: cannot allocate vector of size 232.6 Gb. Try the python code.
 implicit_neg_samples <- 
-  data.frame(user_id = rep(users2keep$user_id, each=length(unique(TODO))), book_id = unique(TODO)) %>% # start by listing all user/item pairs 
-  anti_join(bind_rows(train_positive, validation_positive, test_positive, train_negative, test_negative)) %>%  
-  group_by(user) %>%  # Remaining operations used for sampling some of the negatives based on chosen negative to positive ratio
-  nest() %>%
+  lazy_dt(data.frame(user = rep(users2keep$user_id, each = length(unique(interactions_filtered$book_id))), 
+                     book_id = unique(interactions_filtered$book_id))) %>%   # start by listing all user/item pairs 
+  anti_join(bind_rows(train_positive, validation_positive, test_positive, train_negative, test_negative))  %>%     # remove user/item pairs that are in test and positive training sets
+  as_tibble() %>%     # because dtdplyr doesn't have nest functionality
+  group_by(user) %>%  
+  nest() %>%  
+  lazy_dt() %>%
   inner_join(interaction_cnt) %>%
   mutate(subsamp = map2(data, num_implicit_neg_2sample_4train + num_implicit_neg_2sample_4test, ~slice_sample(.x, n=.y))) %>% 
   select(user_id, subsamp) %>%
+  #tidyfast::dt_unnest() %>%  
+  as_tibble() %>%
   unnest(cols = c(subsamp))
 
+source("sample_implicit_negatives.py")
+implicit_neg_samples <- sample_implicit_negatives(itemIDs = unique(interactions_filtered$book_id), 
+                                                  num_ratings_2sample = transmute(interaction_cnt, 
+                                                                                  num2samp = num_implicit_neg_2sample_4train + num_implicit_neg_2sample_4test), 
+                                                  df_exclude = bind_rows(train_positive, 
+                                                                         validation, 
+                                                                         test_positive, 
+                                                                         train_negative, 
+                                                                         test_negative))
+
+#TODO: Split implicit_neg_samples into test and train. Add to test_negative and train_negative.
 
