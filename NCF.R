@@ -1,6 +1,4 @@
-# This script implements neural collaborative filtering using R Keras. Returns a model.
-
-# Depends on the following variables derived from data: num_users, num_items
+# This script implements neural collaborative filtering using R Keras. 
 
 # Load libraries ----------------------------------------------------------
 
@@ -10,10 +8,14 @@
 
 library(keras)
 
-
-# gmf_embedding_dim and gmf_embedding_dim: embedding dimensions
-# sigma: Value to use for N(0, sigma) initializers
-# lambda: Regularization parameter. Set to value > 0 to include regularization.
+# Input:
+#   num_users: Number of users (max user id, assuming 1-based otherwise add 1)
+#   num_items: Number of items (max item id, assuming 1-based otherwise add 1)
+#   gmf_embedding_dim and gmf_embedding_dim: embedding dimensions
+#   sigma: Value to use for N(0, sigma) initializers
+#   lambda: Regularization parameter. Set to value > 0 to include regularization.
+# Output:
+#   NCF model
 ncf_model <- function(num_users, num_items, gmf_embedding_dim = 64, mlp_embedding_dim = 64, sigma = 0.01, lambda = 0){
 
   # Define network inputs -----------------------------------------------------------
