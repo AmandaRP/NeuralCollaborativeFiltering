@@ -1,6 +1,12 @@
 import numpy as np
 import pandas as pd
 
+
+
+def samp_impl_neg( N, p, excludes=[] ):
+    item_indices = np.arange(0,int(N))
+    return np.random.choice( np.setdiff1d(item_indices, excludes), size=int(p) )
+
 # Input: 
 #   userIDs: array containing unique user IDs
 #   itemIDs: array containing unique item IDs
@@ -16,11 +22,6 @@ def sample_implicit_negatives(userIDs, itemIDs, num_ratings_2sample, df_exclude)
   # iterate to create positive lists
   df_users = [ (user,np.array(pd.DataFrame(df_small).item, dtype=int)) for (user,df_small) in df_gpd]
 
-  # Goal: Sample implicit negatives (user/item pairs) to be added to the training set. Exclude pairs already in test and train sets. 
-
-def samp_imp_neg( N, p, excludes=[] ):
-    item_indices = np.arange(0,int(N))
-    return np.random.choice( np.setdiff1d(item_indices, excludes), size=int(p) )
-
-#import time
-#t_0 = time.time()
+  sampled_negative = [ (u, samp_impl_neg(r.num_items, len(its)*r.neg_pos_ratio_train, excludes=its)) for (u,its) in df_users ]
+  
+  return sampled_negatives
