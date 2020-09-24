@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+# Helper function:
 def samp_impl_neg(item_ids , n, excludes=[] , p = None):
     return np.random.choice( np.setdiff1d(item_ids, excludes), size=int(n) )
 
@@ -10,7 +11,7 @@ def samp_impl_neg(item_ids , n, excludes=[] , p = None):
 #   num_ratings_2sample: vector specifying number of implicit negatives to samples for each user. ith entry should correspond to ith entry in UserIDs vector.#   
 #   df_exclude: dataframe containing user-item pairs that are already assigned (to datasets such as training, validation, and/or test). Must include "user" and "item" columns
 # TODO: Add an optional probability vector for each item (could be used to assign higher probability to popular items)
-def sample_implicit_negatives(user_ids, num_items_to_sample, item_ids, df_exclude, p = None):
+def sample_implicit_negatives(user_ids, item_ids, num_items_to_sample, df_exclude,  p = None):
     # dictionary for user ids and associated number of items to sample
     d = {k:v for (k,v) in zip(user_ids, num_items_to_sample)}
     # group the pandas df by user
