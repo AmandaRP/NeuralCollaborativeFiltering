@@ -158,15 +158,29 @@ implicit_neg_samples <-
   as_tibble() %>%
   unnest(cols = c(subsamp))
 
-source("sample_implicit_negatives.py")
-implicit_neg_samples <- sample_implicit_negatives(itemIDs = unique(interactions_filtered$book_id), 
-                                                  num_ratings_2sample = transmute(interaction_cnt, 
-                                                                                  num2samp = num_implicit_neg_2sample_4train + num_implicit_neg_2sample_4test), 
+source_python("sample_implicit_negatives.py")
+# Negative implicits for TEST:
+df <- filter(interaction_cnt, num_implicit_neg_2sample_4test > 0) 
+implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
+                                                  item_ids = unique(interactions_filtered$book_id),  #TODO: Make sure this is the right id
+                                                  num_items_to_sample = df$num_implicit_neg_2sample_4test,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
                                                                          test_positive, 
                                                                          train_negative, 
                                                                          test_negative))
+test_negative <- bind_rows(test_negative, implicit_neg_samples_test)
 
-#TODO: Split implicit_neg_samples into test and train. Add to test_negative and train_negative.
+# Negatives for TRAIN:
+df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
+implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
+                                                  item_ids = unique(interactions_filtered$book_id), 
+                                                  num_items_to_sample = df$num_implicit_neg_2sample_4train,
+                                                  df_exclude = bind_rows(train_positive, 
+                                                                         validation, 
+                                                                         test_positive, 
+                                                                         train_negative, 
+                                                                         test_negative))
+train_negative <- bind_rows(train_negative, implicit_neg_samples_train)
+
 
