@@ -98,6 +98,25 @@ tictoc::toc() #147 sec using dtplyr
 
 ```
 
+The following R implementation was *significantly* slower than the dplyr version above. Might possibly try something with vectors and lapply/purrr.
+
+```{r}
+# TODO: Implement the following in purrr/furrr. For-loop takes 230 seconds compared to method above, which takes 20 seconds (but is memory intensive.)
+#tictoc::tic()
+#train_negative <- list(NA, dim = num_users)
+#for(u in 0:(num_users-1)){
+#  x <- filter(test, user == u) 
+#  y <- filter(train_rating, user == u) 
+#  cnt <- filter(num_ratings_per_user, user == u) 
+#  sample_set <- setdiff(0:(num_items-1), c(x$item, y$item))
+#  user_negative_items <- sample(sample_set, size = min(neg_pos_ratio_train * cnt$n, length(sample_set)))
+#  train_negative[[u+1]] <- tibble(user = rep(u, length(user_negative_items)), item =  user_negative_items)
+#}
+#train_negative <- bind_rows(train_negative)
+#tictoc::toc() #238 seconds for ml dataset.
+```
+
+
 ## Python version
 
 ```{python}
