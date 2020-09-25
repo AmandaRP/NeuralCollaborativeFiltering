@@ -75,21 +75,6 @@ train_negative <-
   unnest(cols = c(subsamp))
 tictoc::toc() #ml dataset: 20 sec (dplyr,purrr), 14 sec (dtplyr) pinterest: 430 sec (dplyr), too long (dplyr, furrr), 147 sec for dtplyr
 
-# Code below is an attempt to rewrite code above. However, it is currently too slow.
-# TODO: Implement the following in purrr/furrr. For-loop takes 230 seconds compared to method above, which takes 20 seconds (but is memory intensive.)
-#tictoc::tic()
-#train_negative <- list(NA, dim = num_users)
-#for(u in 0:(num_users-1)){
-#  x <- filter(test, user == u) 
-#  y <- filter(train_rating, user == u) 
-#  cnt <- filter(num_ratings_per_user, user == u) 
-#  sample_set <- setdiff(0:(num_items-1), c(x$item, y$item))
-#  user_negative_items <- sample(sample_set, size = min(neg_pos_ratio_train * cnt$n, length(sample_set)))
-#  train_negative[[u+1]] <- tibble(user = rep(u, length(user_negative_items)), item =  user_negative_items)
-#}
-#train_negative <- bind_rows(train_negative)
-#tictoc::toc() #238 seconds for ml dataset.
-
 
 # Define validation data by picking the most recent rating for each user from training
 validation <- train_rating %>% 
