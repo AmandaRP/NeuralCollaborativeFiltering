@@ -41,12 +41,30 @@ book_info %<>%
   mutate_at(c("average_rating"), as.numeric)
 dim(book_info)
 
+interactions %<>% mutate_at(c("user_id", "book_id", "is_read", "rating", "is_reviewed"), as.integer)
+book_id_map %<>% mutate_at(c("book_id_csv", "book_id"), as.integer)
 
-# Use book_info to filter interactions data (need to join with book_id_map)
-(book_id_map_filtered <- semi_join(book_id_map, book_info))
-(interactions_filtered <- semi_join(interactions, book_id_map_filtered, c("book_id" = "book_id_csv")))
+# Use book_info to filter interactions data based on genre (need to join with book_id_map)
+(book_id_map_filtered <- semi_join(book_id_map, book_info)) 
+interactions_filtered <- inner_join(interactions, book_id_map_filtered, c("book_id" = "book_id_csv")) %>% 
+  select(-book_id) %>%
+  rename(book_id = book_id.y) # keep book_id col from book_info df
+
+# Count users per book (to later remove pop bias) -------------------------
+
+books <- interactions_filtered %>% 
+  group_by(book_id) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(p = n/sum(n)) %>% 
+  arrange(desc(n))
+books
+
           
 # A little EDA ---------------------------------------------------------
+
+# Most popular books:
+inner_join(book_info, slice_max(books, order_by = n, n = 10)) %>% select(title, n) %>% arrange(desc(n))
 
 sprintf("There are %d interactions, %d users, and %d books in the Christian genre book dataset.", 
         nrow(interactions_filtered), length(unique(interactions_filtered$user_id)), length(unique(interactions_filtered$book_id)))
@@ -61,7 +79,6 @@ book_info %>% filter(publication_year < 200) %>% select(title, publication_year)
 book_info %>% 
   filter(1875 <= publication_year & publication_year <= 2020) %>%
   ggplot(aes(publication_year)) + geom_histogram()
-
 
 
 # Determine positive and negative interactions ---------------------------------
@@ -140,47 +157,33 @@ train_negative <- anti_join(interactions_negative, test_negative)
 
 
 # Sample implicit negatives to fill out train and test sets
-# TODO: Sample negatives with probability correlated to popularity (users probably already know about popular and didn't watch for a reason)
-# TODO: Sampling of negatives for training should be done for each epoch
-# TODO: Error: cannot allocate vector of size 232.6 Gb. Try the python code.
-implicit_neg_samples <- 
-  lazy_dt(data.frame(user = rep(users2keep$user_id, each = length(unique(interactions_filtered$book_id))), 
-                     book_id = unique(interactions_filtered$book_id))) %>%   # start by listing all user/item pairs 
-  anti_join(bind_rows(train_positive, validation_positive, test_positive, train_negative, test_negative))  %>%     # remove user/item pairs that are in test and positive training sets
-  as_tibble() %>%     # because dtdplyr doesn't have nest functionality
-  group_by(user) %>%  
-  nest() %>%  
-  lazy_dt() %>%
-  inner_join(interaction_cnt) %>%
-  mutate(subsamp = map2(data, num_implicit_neg_2sample_4train + num_implicit_neg_2sample_4test, ~slice_sample(.x, n=.y))) %>% 
-  select(user_id, subsamp) %>%
-  #tidyfast::dt_unnest() %>%  
-  as_tibble() %>%
-  unnest(cols = c(subsamp))
-
+# TODO: Sample negatives with probability correlated with popularity (users probably already know about popular and didn't watch for a reason)
+# TODO: Try the following using R's lapply or purrr
 source_python("sample_implicit_negatives.py")
 # Negative implicits for TEST:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4test > 0) 
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = unique(interactions_filtered$book_id),  #TODO: Make sure this is the right id
+                                                  item_ids = books$book_id,  
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4test,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
                                                                          test_positive, 
                                                                          train_negative, 
-                                                                         test_negative))
+                                                                         test_negative),
+                                                  p = books$p)
 test_negative <- bind_rows(test_negative, implicit_neg_samples_test)
 
 # Negatives for TRAIN:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
 implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = unique(interactions_filtered$book_id), 
+                                                  item_ids = books$book_id, 
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4train,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
                                                                          test_positive, 
                                                                          train_negative, 
-                                                                         test_negative))
+                                                                         test_negative),
+                                                  p = books$p)
 train_negative <- bind_rows(train_negative, implicit_neg_samples_train)
 
 
