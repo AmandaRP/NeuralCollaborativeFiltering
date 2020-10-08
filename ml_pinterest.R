@@ -96,7 +96,7 @@ train <- anti_join(train_rating, validation) %>%
 
 source("NCF.R")
 model <- ncf_model(num_users = max(train_rating$user) + 1, 
-                   num_items = max(train_rating$user) + 1)
+                   num_items = max(train_rating$item) + 1)
 
 
 # Train model -------------------------------------------------------------
