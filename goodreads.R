@@ -4,17 +4,17 @@
 
 library(tidyverse)
 library(magrittr)
-library(dtplyr)
-library(dplyr, warn.conflicts = FALSE)
+#library(dtplyr)
+#library(dplyr, warn.conflicts = FALSE)
 
 
 # Download GoodReads data ---------------------------------------------------------------
 
 # Data available at: https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/home 
 #     See https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/shelves?authuser=0
-path <- "/data/"
-download.file("https://drive.google.com/open?id=1zmylV7XW2dfQVCLeg1LbllfQtHD2KUon", str_c(path, "goodreads_interactions.csv"))
-download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr", str_c(path, "book_id_map.csv"))
+#path <- "/data/"
+#download.file("https://drive.google.com/u/0/uc?export=download&confirm=uMLl&id=1zmylV7XW2dfQVCLeg1LbllfQtHD2KUon", str_c(path, "goodreads_interactions.csv"))
+#download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr", str_c(path, "book_id_map.csv"))
 #download.file("https://drive.google.com/uc?id=15ax-h0Oi_Oyee8gY_aAQN6odoijmiz6Q", str_c(path, "user_id_map.csv"))
 
 # Read data ---------------------------------------------------------------
@@ -50,21 +50,22 @@ interactions_filtered <- inner_join(interactions, book_id_map_filtered, c("book_
   select(-book_id) %>%
   rename(book_id = book_id.y) # keep book_id col from book_info df
 
-# Count users per book (to later remove pop bias) -------------------------
+# Count users per book (to later remove pop bias). Add to book_info df ---------
 
-books <- interactions_filtered %>% 
+book_info <- interactions_filtered %>% 
   group_by(book_id) %>% 
   count() %>% 
   ungroup() %>% 
   mutate(p = n/sum(n)) %>% 
-  arrange(desc(n))
-books
+  arrange(desc(n)) %>%
+  inner_join(book_info)
+book_info
 
           
 # A little EDA ---------------------------------------------------------
 
 # Most popular books:
-inner_join(book_info, slice_max(books, order_by = n, n = 10)) %>% select(title, n) %>% arrange(desc(n))
+book_info %>% slice_max(order_by = n, n = 10) %>% select(title, n) %>% arrange(desc(n))
 
 sprintf("There are %d interactions, %d users, and %d books in the Christian genre book dataset.", 
         nrow(interactions_filtered), length(unique(interactions_filtered$user_id)), length(unique(interactions_filtered$book_id)))
@@ -102,7 +103,8 @@ interactions_positive <-
 threshold <- 3
 users2keep <- interactions_positive %>% 
   group_by(user_id) %>%  
-  count() %>% filter(n >= threshold) %>% 
+  count() %>% 
+  filter(n >= threshold) %>% 
   select(user_id)
 
 interactions_positive <- inner_join(interactions_positive, users2keep)
@@ -124,9 +126,8 @@ interactions_negative <-
 
 # Positives:
 test_positive <- interactions_positive %>% group_by(user_id) %>% slice_sample(n = 1) 
-interactions_positive <- anti_join(interactions_positive, test_positive)
-validation <- interactions_positive %>% group_by(user_id) %>% slice_sample(n = 1) 
-train_positive <- anti_join(interactions_positive, validation) 
+validation <- anti_join(interactions_positive, test_positive) %>% group_by(user_id) %>% slice_sample(n = 1) 
+train_positive <- anti_join(interactions_positive, bind_rows(validation, test_positive) )
 
 # Calculate number of negative items that need sampled for test and training sets:
 neg_pos_ratio_train <- 4
@@ -141,6 +142,7 @@ interaction_cnt <-
   mutate(num_explicit_neg_2sample_4test = min(100, max(0,excess_neg))) %>%
   mutate(num_implicit_neg_2sample_4test = 100 - num_explicit_neg_2sample_4test) %>%
   mutate(num_implicit_neg_2sample_4train = (excess_neg < 0) * abs(excess_neg)) 
+interaction_cnt
 
 # Put excess explicit negatives (up to 100) in test set: TODO: Should I keep all explicit negatives in training? This might be too much class imbalance.
 # Note: If dataset had timestamps, would be better to split on time instead of randomly
@@ -153,37 +155,42 @@ test_negative <- interactions_negative %>%
   unnest(cols = c(subsamp)) 
 
 # Remaining explicit negatives go in training set:
-train_negative <- anti_join(interactions_negative, test_negative)
+# Note: Some users may have more than neg_pos_ratio_train times as many negatives as positives (if they have an abundant number of explicit negatives). OK or need to sample?
+train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(user_id)
 
 
 # Sample implicit negatives to fill out train and test sets
-# TODO: Sample negatives with probability correlated with popularity (users probably already know about popular and didn't watch for a reason)
 # TODO: Try the following using R's lapply or purrr
 source_python("sample_implicit_negatives.py")
+
 # Negative implicits for TEST:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4test > 0) 
+#tic()
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = books$book_id,  
+                                                  item_ids = book_info$book_id,  
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4test,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
                                                                          test_positive, 
                                                                          train_negative, 
-                                                                         test_negative),
-                                                  p = books$p)
+                                                                         test_negative) %>%
+                                                    rename(user = user_id, item = book_id),
+                                                  p = book_info$p)
+#toc()
 test_negative <- bind_rows(test_negative, implicit_neg_samples_test)
 
 # Negatives for TRAIN:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
 implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = books$book_id, 
+                                                  item_ids = book_info$book_id, 
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4train,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
                                                                          test_positive, 
                                                                          train_negative, 
-                                                                         test_negative),
-                                                  p = books$p)
+                                                                         test_negative) %>%
+                                                    rename(user = user_id, item = book_id),
+                                                  p = book_info$p)
 train_negative <- bind_rows(train_negative, implicit_neg_samples_train)
 
 
