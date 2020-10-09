@@ -22,3 +22,4 @@ def sample_implicit_negatives(user_ids, item_ids, num_items_to_sample, df_exclud
     implicits = [ (user, samp_impl_neg(item_ids, d[user], excludes=items)) for (user, items) in user_exclude_items]
     df = pd.DataFrame(implicits, columns = ["user", "item"])
     return df.explode("item", ignore_index = True)
+    #TODO: See what class the item column is. Seems to be a list type.
