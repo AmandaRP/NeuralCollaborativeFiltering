@@ -6,13 +6,17 @@ library(tidyverse)
 library(magrittr)
 #library(dtplyr)
 #library(dplyr, warn.conflicts = FALSE)
+library(tictoc)
+library(reticulate)
+
+source_python("sample_implicit_negatives.py") #Used to call function sample_implicit_negatives
 
 
 # Download GoodReads data ---------------------------------------------------------------
 
 # Data available at: https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/home 
 #     See https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/shelves?authuser=0
-#path <- "/data/"
+path <- "/data/"
 #download.file("https://drive.google.com/u/0/uc?export=download&confirm=uMLl&id=1zmylV7XW2dfQVCLeg1LbllfQtHD2KUon", str_c(path, "goodreads_interactions.csv"))
 #download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr", str_c(path, "book_id_map.csv"))
 #download.file("https://drive.google.com/uc?id=15ax-h0Oi_Oyee8gY_aAQN6odoijmiz6Q", str_c(path, "user_id_map.csv"))
@@ -45,14 +49,20 @@ interactions %<>% mutate_at(c("user_id", "book_id", "is_read", "rating", "is_rev
 book_id_map %<>% mutate_at(c("book_id_csv", "book_id"), as.integer)
 
 # Use book_info to filter interactions data based on genre (need to join with book_id_map)
-(book_id_map_filtered <- semi_join(book_id_map, book_info)) 
-interactions_filtered <- inner_join(interactions, book_id_map_filtered, c("book_id" = "book_id_csv")) %>% 
-  select(-book_id) %>%
-  rename(book_id = book_id.y) # keep book_id col from book_info df
+book_info %<>% 
+  inner_join(book_id_map) %>%  
+  rename(book_id_orig = book_id, book_id_interaction = book_id_csv) %>% #book_id_interaction will be used to join to interactions data
+  arrange(book_id_interaction) %>%
+  mutate(book_id = row_number()) %>%  #assign new book id's so that we aren't dealing with such large numbers
+  select(book_id, book_id_interaction, book_id_orig:image_url) #reorder
+interactions %<>% 
+  inner_join(select(book_info, book_id_interaction, book_id), by = c("book_id" = "book_id_interaction")) %>% 
+  select(-book_id) %>% 
+  rename(book_id = book_id.y) #use our new book id's in the interactions dataset
 
 # Count users per book (to later remove pop bias). Add to book_info df ---------
 
-book_info <- interactions_filtered %>% 
+book_info <- interactions %>% 
   group_by(book_id) %>% 
   count() %>% 
   ungroup() %>% 
@@ -68,8 +78,11 @@ book_info
 book_info %>% slice_max(order_by = n, n = 10) %>% select(title, n) %>% arrange(desc(n))
 
 sprintf("There are %d interactions, %d users, and %d books in the Christian genre book dataset.", 
-        nrow(interactions_filtered), length(unique(interactions_filtered$user_id)), length(unique(interactions_filtered$book_id)))
-summary(interactions_filtered)
+        nrow(interactions), length(unique(interactions$user_id)), length(unique(interactions$book_id)))
+sparsity <- nrow(interactions) / length(unique(interactions$user_id))
+sparsity <- sparsity / length(unique(interactions$book_id))
+sprintf("Sparsity is %f",  1 - sparsity)
+summary(interactions)
 
 # Max/min publication year:
 book_info %>% select(publication_year) %>% filter(publication_year <= 2020) %>% slice_max(n=1, order_by = publication_year) 
@@ -95,7 +108,7 @@ book_info %>%
 # TODO: Could mine sentiment of reviews for instances where review is given but no rating provided
 
 interactions_positive <- 
-  interactions_filtered %>%
+  interactions %>%
   filter(is_read == 0 | (is_read == 1 & (0 == rating | rating >= 4))) %>%
   select(user_id, book_id)
 
@@ -105,14 +118,22 @@ users2keep <- interactions_positive %>%
   group_by(user_id) %>%  
   count() %>% 
   filter(n >= threshold) %>% 
-  select(user_id)
+  select(user_id) %>%
+  ungroup() %>%
+  mutate(new_user_id = row_number()) #add a new id to reduce max id size
 
-interactions_positive <- inner_join(interactions_positive, users2keep)
-interactions_filtered <- inner_join(interactions_filtered, users2keep)
+interactions_positive %<>% 
+  inner_join(users2keep) %>%
+  select(-user_id) %>%
+  rename(user_id = new_user_id)
+interactions %<>% 
+  inner_join(users2keep) %>%
+  select(-user_id) %>%
+  rename(user_id = new_user_id)
   
 # Books that the reader did NOT like i.e. rating is 1 or 2:
 interactions_negative <- 
-  interactions_filtered %>%
+  interactions %>%
   filter(rating %in% c(1,2)) %>%
   select(user_id, book_id)
 
@@ -144,7 +165,8 @@ interaction_cnt <-
   mutate(num_implicit_neg_2sample_4train = (excess_neg < 0) * abs(excess_neg)) 
 interaction_cnt
 
-# Put excess explicit negatives (up to 100) in test set: TODO: Should I keep all explicit negatives in training? This might be too much class imbalance.
+# Put excess explicit negatives (up to 100) in test set: 
+# TODO: Should I keep all explicit negatives in training? This might be too much class imbalance.
 # Note: If dataset had timestamps, would be better to split on time instead of randomly
 test_negative <- interactions_negative %>% 
   group_by(user_id) %>%
@@ -155,17 +177,16 @@ test_negative <- interactions_negative %>%
   unnest(cols = c(subsamp)) 
 
 # Remaining explicit negatives go in training set:
-# Note: Some users may have more than neg_pos_ratio_train times as many negatives as positives (if they have an abundant number of explicit negatives). OK or need to sample?
+# TODO: Some users may have more than neg_pos_ratio_train times as many negatives as positives (if they have an abundant number of explicit negatives). OK or need to sample?
 train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(user_id)
 
 
 # Sample implicit negatives to fill out train and test sets
 # TODO: Try the following using R's lapply or purrr
-source_python("sample_implicit_negatives.py")
 
 # Negative implicits for TEST:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4test > 0) 
-#tic()
+tic()
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                   item_ids = book_info$book_id,  
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4test,
@@ -176,11 +197,13 @@ implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                                          test_negative) %>%
                                                     rename(user = user_id, item = book_id),
                                                   p = book_info$p)
-#toc()
-test_negative <- bind_rows(test_negative, implicit_neg_samples_test)
+toc()
+implicit_neg_samples_test$item <- as.integer(implicit_neg_samples_test$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
+test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(user_id = user, book_id = item))
 
 # Negatives for TRAIN:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
+tic()
 implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
                                                   item_ids = book_info$book_id, 
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4train,
@@ -191,6 +214,16 @@ implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
                                                                          test_negative) %>%
                                                     rename(user = user_id, item = book_id),
                                                   p = book_info$p)
-train_negative <- bind_rows(train_negative, implicit_neg_samples_train)
+toc()
+implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
+train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item))
 
+
+# Define model ------------------------------------------------------------
+
+source("NCF.R")
+model <- ncf_model(num_users = max(users2keep$new_user_id) + 1, 
+                   num_items = max(book_info$book_id) + 1)
+
+#OOM error. Issue: Use smaller book/user ids (re-number for those in smaller dataset)
 
