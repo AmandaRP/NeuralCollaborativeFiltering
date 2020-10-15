@@ -262,3 +262,22 @@ toc()
 
 # Load best model:
 model <- load_model_hdf5("model.h5")
+
+
+# Evaluate results --------------------------------------------------------
+
+history
+#plot(history)
+
+# Evaluate returns same metrics that were defined in the compile (accuracy in this case)
+(results <- model %>% evaluate(list(test$user_id, test$book_id), test$label))
+
+# Get predictions for test set:
+test_pred <- model %>% 
+  predict(x = list(test$user_id, test$book_id)) %>%
+  bind_cols(pred = ., test)
+
+# Compute hit rate and ndcg
+source("evaluation.R")
+compute_hr(test_pred, 10)
+compute_ndcg(test_pred, 10)
