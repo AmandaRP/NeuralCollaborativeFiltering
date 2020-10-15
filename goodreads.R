@@ -243,20 +243,22 @@ callback_list <- list(
 )
 
 # Train model
+tic()
 history <- 
   model %>% 
   fit(
-    x = list(user_input = as.array(train$user), 
-             item_input = as.array(train$item)),
+    x = list(user_input = as.array(train$user_id), 
+             item_input = as.array(train$book_id)),
     y = as.array(train$label),
-    epochs = 10,
+    epochs = 2,
     batch_size = 2048, 
-    validation_data = list(list(user_input = as.array(validation$user), 
-                                item_input = as.array(validation$item)), 
+    validation_data = list(list(user_input = as.array(validation$user_id), 
+                                item_input = as.array(validation$book_id)), 
                            as.array(validation$label)),
     shuffle = TRUE, 
     callbacks = callback_list
   ) 
+toc()
 
 # Load best model:
 model <- load_model_hdf5("model.h5")
