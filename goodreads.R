@@ -218,6 +218,11 @@ toc()
 implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
 train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item))
 
+#Put it all together:
+train <- bind_rows(add_column(train_positive, label = 1), add_column(train_negative, label = 0)) 
+test <- bind_rows(add_column(test_positive, label = 1), add_column(test_negative, label = 0))
+validation <- add_column(validation, label = 1)
+
 
 # Define model ------------------------------------------------------------
 
@@ -225,5 +230,33 @@ source("NCF.R")
 model <- ncf_model(num_users = max(users2keep$new_user_id) + 1, 
                    num_items = max(book_info$book_id) + 1)
 
-#OOM error. Issue: Use smaller book/user ids (re-number for those in smaller dataset)
 
+
+# Train model -------------------------------------------------------------
+
+# First define callbacks to stop model early when validation loss increases and to save best model
+callback_list <- list(
+  callback_early_stopping(patience = 2),
+  callback_model_checkpoint(filepath = "model.h5", 
+                            monitor = "val_loss", 
+                            save_best_only = TRUE)
+)
+
+# Train model
+history <- 
+  model %>% 
+  fit(
+    x = list(user_input = as.array(train$user), 
+             item_input = as.array(train$item)),
+    y = as.array(train$label),
+    epochs = 10,
+    batch_size = 2048, 
+    validation_data = list(list(user_input = as.array(validation$user), 
+                                item_input = as.array(validation$item)), 
+                           as.array(validation$label)),
+    shuffle = TRUE, 
+    callbacks = callback_list
+  ) 
+
+# Load best model:
+model <- load_model_hdf5("model.h5")
