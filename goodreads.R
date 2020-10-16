@@ -38,8 +38,8 @@ system("rm goodreads_books_christian.RData")
 # Clean up book_info:
 book_info <- christian_book_info #rename to be more generic
 rm(christian_book_info)
-book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -work_id)
-book_info %<>% select(book_id, title, popular_shelves:image_url) #reorder
+book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -christian)
+book_info %<>% select(book_id, work_id, title, popular_shelves:image_url) #reorder
 book_info %<>%
   mutate_at(c("book_id", "num_pages", "publication_year"), as.integer) %>%
   mutate_at(c("average_rating"), as.numeric)
@@ -137,6 +137,29 @@ interactions_negative <-
   filter(rating %in% c(1,2)) %>%
   select(user_id, book_id)
 
+#Create a new "user_id" for my reading group and list books that we've liked and disliked
+our_user_id <- max(users2keep$new_user_id) + 1
+users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = our_user_id))
+our_interactions_positive <- 
+  tribble(
+  ~user_id,    ~book_id,
+  our_user_id, , # Safely Home
+  our_user_id, , # Sophie's Heart
+  our_user_id, , # Long Way Gone
+  our_user_id,  # When Crickets Cry
+  ) 
+interactions_positive <- bind_rows(interactions_positive, our_interactions_positive)
+
+our_interactions_negative <-   
+  tribble(
+    ~user_id,    ~book_id,
+    our_user_id, , # At Home in Mitford
+    our_user_id,   # The Hideaway
+  ) 
+interactions_negative <- bind_rows(interactions_negative, our_interactions_negative)
+
+# For prediction, exclude books that we've already read + books that are basically the same (e.g. other media versions)
+#book_ids_to_exclude_from_prediction <- c(my_groups_interactions_positive$book_id, my_groups_interactions_negative$book_id, MORE)
 
 # Compose Train/Validation/Test sets --------------------------------------
 
