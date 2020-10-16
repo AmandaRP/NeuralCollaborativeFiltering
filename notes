@@ -1,0 +1,61 @@
+Notes on challenges and improvements:
+
+1. The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). 
+  Would be nice to get an updated dataset. Can't find "My Heart Belongs in Blue Ridge".
+
+2. Challenge: Searching the book info df by title. Example title: "Safely Home" returns 8 rows. 
+  Differences accounted by:
+  - Different authors
+  - Different publications of the same book
+  - Different formats (paperback vs audio book)
+  
+  TODO: Use work_id in origianl dataset to collapse these records. (See code starting on line 42.)
+
+> book_info %>% filter(title == "Safely Home") %>% select(book_id, title, link, authors, publication_year)
+# A tibble: 8 x 5
+  book_id title       link                                                     authors          publication_year
+    <int> <chr>       <chr>                                                    <list>                      <int>
+1    3305 Safely Home https://www.goodreads.com/book/show/290369.Safely_Home   <df[,2] [1 × 2]>             2001 (hardcover, older version)
+2   26071 Safely Home https://www.goodreads.com/book/show/20801893-safely-home <df[,2] [1 × 2]>               NA (author Ruth Logan Herne)
+3    8167 Safely Home https://www.goodreads.com/book/show/353367.Safely_Home   <df[,2] [1 × 2]>               NA (older version of paperback)
+4   46076 Safely Home https://www.goodreads.com/book/show/6658371-safely-home  <df[,2] [1 × 2]>               NA (kindle)
+5   47151 Safely Home https://www.goodreads.com/book/show/10132008-safely-home <df[,2] [1 × 2]>             2011 (paperback) <- This one
+6   72385 Safely Home https://www.goodreads.com/book/show/754044.Safely_Home   <df[,2] [1 × 2]>             2003 (author Tom Eldredge)
+7   80277 Safely Home https://www.goodreads.com/book/show/4134017-safely-home  <df[,2] [2 × 2]>             2007 (kindle)
+8   81902 Safely Home https://www.goodreads.com/book/show/12326579-safely-home <df[,2] [1 × 2]>             2011 (ebook)
+
+
+> book_info %>% filter(title == "Sophie's Heart") %>% select(book_id, title, link, authors, publication_year)
+
+
+> book_info %>% filter(title == "When Crickets Cry") %>% select(book_id, title, link, authors, publication_year)
+# A tibble: 5 x 5
+  book_id title             link                                                           authors          publication_year
+    <int> <chr>             <chr>                                                          <list>                      <int>
+1    1106 When Crickets Cry https://www.goodreads.com/book/show/241387.When_Crickets_Cry   <df[,2] [1 × 2]>               NA (paperback) <- This one
+2   15970 When Crickets Cry https://www.goodreads.com/book/show/12309554-when-crickets-cry <df[,2] [1 × 2]>             2006 (kindle)
+3   65302 When Crickets Cry https://www.goodreads.com/book/show/6588411-when-crickets-cry  <df[,2] [1 × 2]>               NA (kindle)
+4   94542 When Crickets Cry https://www.goodreads.com/book/show/7169054-when-crickets-cry  <df[,2] [1 × 2]>             2006 (ebook)
+5   49505 When Crickets Cry https://www.goodreads.com/book/show/13428710-when-crickets-cry <df[,2] [2 × 2]>             2012 (audio book)
+
+
+# A tibble: 4 x 5
+  book_id title          link                                                       authors          publication_year
+    <int> <chr>          <chr>                                                      <list>                      <int>
+1    1300 Sophie's Heart https://www.goodreads.com/book/show/289741.Sophie_s_Heart  <df[,2] [1 × 2]>               NA (paperback, 2004)
+2   51748 Sophie's Heart https://www.goodreads.com/book/show/666746.Sophie_s_Heart  <df[,2] [1 × 2]>             1995 (paperback)
+3   46707 Sophie's Heart https://www.goodreads.com/book/show/1093870.Sophie_s_Heart <df[,2] [1 × 2]>             2003 (paperback, what's the difference?)
+4  102162 Sophie's Heart https://www.goodreads.com/book/show/7749507-sophie-s-heart <df[,2] [1 × 2]>             2004 (ebook)
+
+
+> book_info %>% filter(title == "Long Way Gone") %>% select(book_id, title, link, authors, publication_year)
+# A tibble: 6 x 5
+  book_id title         link                                                       authors          publication_year
+    <int> <chr>         <chr>                                                      <list>                      <int>
+1    8470 Long Way Gone https://www.goodreads.com/book/show/29492038-long-way-gone <df[,2] [1 × 2]>             2016 (hardcover)
+2   30214 Long Way Gone https://www.goodreads.com/book/show/34607396-long-way-gone <df[,2] [1 × 2]>             2016 (kindle)
+3   69696 Long Way Gone https://www.goodreads.com/book/show/29588750-long-way-gone <df[,2] [1 × 2]>               NA (kindle)
+4   57554 Long Way Gone https://www.goodreads.com/book/show/29587731-long-way-gone <df[,2] [1 × 2]>             2016 (ebook)
+5   61104 Long Way Gone https://www.goodreads.com/book/show/31812624-long-way-gone <df[,2] [1 × 2]>             2016 (hardcover)
+6   80534 Long Way Gone https://www.goodreads.com/book/show/33099404-long-way-gone <df[,2] [1 × 2]>             2017 (paperback) <- this one
+
