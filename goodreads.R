@@ -41,41 +41,52 @@ rm(christian_book_info)
 book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -christian)
 book_info %<>% select(book_id, work_id, title, popular_shelves:image_url) #reorder
 book_info %<>%
-  mutate_at(c("book_id", "num_pages", "publication_year"), as.integer) %>%
+  mutate_at(c("book_id", "work_id", "num_pages", "publication_year"), as.integer) %>%
   mutate_at(c("average_rating"), as.numeric)
 dim(book_info)
 
 interactions %<>% mutate_at(c("user_id", "book_id", "is_read", "rating", "is_reviewed"), as.integer)
 book_id_map %<>% mutate_at(c("book_id_csv", "book_id"), as.integer)
 
-# Use book_info to filter interactions data based on genre (need to join with book_id_map)
+# Create a new id for each work_id (need to use smaller numbers for NN to reduce params)
+new_book_id_df <- book_info %>% 
+  select(work_id) %>% 
+  distinct() %>% 
+  mutate(new_book_id = row_number())
+# First grab book_id_csv from book_id_map (need for joining to interactions)
 book_info %<>% 
-  inner_join(book_id_map) %>%  
+  inner_join(book_id_map) %>%  # get id's needed for joining to interaction data (here we're using "book_id")
+  inner_join(new_book_id_df) %>% # get new id's that we'll use (joining on work_id)
   rename(book_id_orig = book_id, book_id_interaction = book_id_csv) %>% #book_id_interaction will be used to join to interactions data
-  arrange(book_id_interaction) %>%
-  mutate(book_id = row_number()) %>%  #assign new book id's so that we aren't dealing with such large numbers
-  select(book_id, book_id_interaction, book_id_orig:image_url) #reorder
+  arrange(new_book_id) %>%
+  select(new_book_id, book_id_interaction, work_id:image_url) #reorder
+# Use book_info to filter interactions data based on genre (need to join with book_id_map)
 interactions %<>% 
-  inner_join(select(book_info, book_id_interaction, book_id), by = c("book_id" = "book_id_interaction")) %>% 
+  inner_join(select(book_info, book_id_interaction, new_book_id), by = c("book_id" = "book_id_interaction")) %>% 
   select(-book_id) %>% 
-  rename(book_id = book_id.y) #use our new book id's in the interactions dataset
+  rename(book_id = new_book_id) #use our new book id's in the interactions dataset
 
 # Count users per book (to later remove pop bias). Add to book_info df ---------
 
-book_info <- interactions %>% 
+new_book_id_df <- interactions %>% 
   group_by(book_id) %>% 
   count() %>% 
   ungroup() %>% 
   mutate(p = n/sum(n)) %>% 
   arrange(desc(n)) %>%
-  inner_join(book_info)
-book_info
+  inner_join(new_book_id_df, by = c("book_id" = "new_book_id"))
+new_book_id_df
 
           
 # A little EDA ---------------------------------------------------------
 
 # Most popular books:
-book_info %>% slice_max(order_by = n, n = 10) %>% select(title, n) %>% arrange(desc(n))
+new_book_id_df %>% 
+  inner_join(book_info, by = c("book_id" = "new_book_id")) %>% 
+  slice_max(order_by = n, n = 10) %>% 
+  select(book_id, n) %>% 
+  distinct() %>%
+  arrange(desc(n))
 
 sprintf("There are %d interactions, %d users, and %d books in the Christian genre book dataset.", 
         nrow(interactions), length(unique(interactions$user_id)), length(unique(interactions$book_id)))
@@ -137,29 +148,33 @@ interactions_negative <-
   filter(rating %in% c(1,2)) %>%
   select(user_id, book_id)
 
+
+
+# Add my reading group to data --------------------------------------------
+
+#TODO: Move this block of code (I don't want to include my group's data in validation or test.. only training)
+
 #Create a new "user_id" for my reading group and list books that we've liked and disliked
 our_user_id <- max(users2keep$new_user_id) + 1
 users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = our_user_id))
 our_interactions_positive <- 
   tribble(
   ~user_id,    ~book_id,
-  our_user_id, , # Safely Home
-  our_user_id, , # Sophie's Heart
-  our_user_id, , # Long Way Gone
-  our_user_id,  # When Crickets Cry
+  our_user_id, 4493,  # Safely Home
+  our_user_id, 16031, # Sophie's Heart
+  our_user_id, 6345,  # Long Way Gone
+  our_user_id, 4145   # When Crickets Cry
   ) 
 interactions_positive <- bind_rows(interactions_positive, our_interactions_positive)
 
 our_interactions_negative <-   
   tribble(
     ~user_id,    ~book_id,
-    our_user_id, , # At Home in Mitford
-    our_user_id,   # The Hideaway
+    our_user_id, 7464, # At Home in Mitford
+    our_user_id, 35269 # The Hideaway
   ) 
 interactions_negative <- bind_rows(interactions_negative, our_interactions_negative)
 
-# For prediction, exclude books that we've already read + books that are basically the same (e.g. other media versions)
-#book_ids_to_exclude_from_prediction <- c(my_groups_interactions_positive$book_id, my_groups_interactions_negative$book_id, MORE)
 
 # Compose Train/Validation/Test sets --------------------------------------
 
@@ -205,13 +220,13 @@ train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(us
 
 
 # Sample implicit negatives to fill out train and test sets
-# TODO: Try the following using R's lapply or purrr
+# TODO: Try the following using R's lapply or purrr.
 
 # Negative implicits for TEST:
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4test > 0) 
 tic()
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = book_info$book_id,  
+                                                  item_ids = new_book_id_df$book_id,  
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4test,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
@@ -219,7 +234,7 @@ implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                                          train_negative, 
                                                                          test_negative) %>%
                                                     rename(user = user_id, item = book_id),
-                                                  p = book_info$p)
+                                                  p = new_book_id_df$p)
 toc()
 implicit_neg_samples_test$item <- as.integer(implicit_neg_samples_test$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
 test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(user_id = user, book_id = item))
@@ -228,7 +243,7 @@ test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(u
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
 tic()
 implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = book_info$book_id, 
+                                                  item_ids = new_book_id_df$book_id, 
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4train,
                                                   df_exclude = bind_rows(train_positive, 
                                                                          validation, 
@@ -236,7 +251,7 @@ implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
                                                                          train_negative, 
                                                                          test_negative) %>%
                                                     rename(user = user_id, item = book_id),
-                                                  p = book_info$p)
+                                                  p = new_book_id_df$p)
 toc()
 implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
 train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item))
@@ -251,7 +266,7 @@ validation <- add_column(validation, label = 1)
 
 source("NCF.R")
 model <- ncf_model(num_users = max(users2keep$new_user_id) + 1, 
-                   num_items = max(book_info$book_id) + 1)
+                   num_items = max(new_book_id_df$book_id) + 1)
 
 
 
@@ -304,3 +319,9 @@ test_pred <- model %>%
 source("evaluation.R")
 compute_hr(test_pred, 10)
 compute_ndcg(test_pred, 10)
+
+
+# Make recommendations ----------------------------------------------------
+
+# Note: 
+
