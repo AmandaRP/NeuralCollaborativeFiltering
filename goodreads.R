@@ -313,7 +313,8 @@ history
 # Get predictions for test set:
 test_pred <- model %>% 
   predict(x = list(test$user_id, test$book_id)) %>%
-  bind_cols(pred = ., test)
+  bind_cols(pred = ., test) %>%
+  rename(user = user_id, item = book_id)
 
 # Compute hit rate and ndcg
 source("evaluation.R")
