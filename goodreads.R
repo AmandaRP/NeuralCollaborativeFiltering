@@ -149,33 +149,6 @@ interactions_negative <-
   select(user_id, book_id)
 
 
-
-# Add my reading group to data --------------------------------------------
-
-#TODO: Move this block of code (I don't want to include my group's data in validation or test.. only training)
-
-#Create a new "user_id" for my reading group and list books that we've liked and disliked
-our_user_id <- max(users2keep$new_user_id) + 1
-users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = our_user_id))
-our_interactions_positive <- 
-  tribble(
-  ~user_id,    ~book_id,
-  our_user_id, 4493,  # Safely Home
-  our_user_id, 16031, # Sophie's Heart
-  our_user_id, 6345,  # Long Way Gone
-  our_user_id, 4145   # When Crickets Cry
-  ) 
-interactions_positive <- bind_rows(interactions_positive, our_interactions_positive)
-
-our_interactions_negative <-   
-  tribble(
-    ~user_id,    ~book_id,
-    our_user_id, 7464, # At Home in Mitford
-    our_user_id, 35269 # The Hideaway
-  ) 
-interactions_negative <- bind_rows(interactions_negative, our_interactions_negative)
-
-
 # Compose Train/Validation/Test sets --------------------------------------
 
 # Method (following the paper):
@@ -262,6 +235,38 @@ test <- bind_rows(add_column(test_positive, label = 1), add_column(test_negative
 validation <- add_column(validation, label = 1)
 
 
+
+# Add my reading group to training data ----------------------------------------
+
+#Create a new "user_id" for my reading group and list books that we've liked and disliked
+book_club_user_id <- max(users2keep$new_user_id) + 1
+users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = book_club_user_id))
+book_club_interactions <- 
+  tribble(
+    ~user_id,    ~book_id, ~rating,
+    book_club_user_id, 4493,  5, # Safely Home
+    book_club_user_id, 16031, 4, # Sophie's Heart
+    book_club_user_id, 6345,  4, # Long Way Gone
+    book_club_user_id, 4145,  4, # When Crickets Cry
+    book_club_user_id, 7464,  1, # At Home in Mitford
+    book_club_user_id, 35269, 1  # The Hideaway
+  ) 
+
+#Add our books to training data
+train <- bind_rows(train, 
+                   #positive:
+                   book_club_interactions %>% 
+                     filter(rating >= 4) %>%
+                     select(book_id, user_id) %>%
+                     mutate(label = 1),
+                   #negative:
+                   book_club_interactions %>% 
+                     filter(rating <= 2) %>%
+                     select(book_id, user_id) %>%
+                     mutate(label = 0)
+)
+
+
 # Define model ------------------------------------------------------------
 
 source("NCF.R")
@@ -321,8 +326,41 @@ source("evaluation.R")
 compute_hr(test_pred, 10)
 compute_ndcg(test_pred, 10)
 
+# Before accounting for popularity bias:
+# hr 0.912
+# ndcg 0.753
+# test loss: 0.08511109 
+# test accuracy: 0.97462940 
 
 # Make recommendations ----------------------------------------------------
 
-# Note: 
+#Remove the books that we've already read:
+books_to_score <- anti_join(new_book_id_df, book_club_interactions) 
 
+#Score the remaining books:
+recommendations <- 
+  model %>% 
+  predict(x = list(rep(book_club_user_id, nrow(books_to_score)), 
+                   books_to_score$book_id)) %>%
+  bind_cols(pred = ., books_to_score)  %>%
+  select(-n, -p) %>%
+  arrange(desc(pred))
+
+  recommendations %>% 
+    inner_join(book_info) %>% 
+    select(pred, book_id, work_id, title, publication_year, url) %>% 
+    View()
+
+# Top recommendations (before accounting for popularity bias and before excluding our books from test and validation):
+# 1. The Lion, the Witch, and the Wardrobe
+# 2. Redeeming Love by Francine Rivers (https://www.goodreads.com/book/show/24377351-redeeming-love)
+# 3. The 5 Love Languages: The Secret to Love that Lasts	(not fiction)
+# 4. The Hiding Place
+# 5. A Voice in the Wind (Mark of the Lion, #1)
+# 6. Chronicles Of Narnia Boxed Set
+# 7. Unbroken: A World War II Story of Survival, Resilienc...
+# 8. An Echo in the Darkness (Mark of the Lion, #2)
+# 9. Lamb: The Gospel According to Biff, Christ's Childhood...
+# 10. Mere Christianity
+  
+ 
