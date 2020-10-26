@@ -1,9 +1,18 @@
 import numpy as np
 import pandas as pd
 
+def p_rebalance( p_broke ):
+    # make p sum to one, proportionally
+    return p_broke/p_broke.sum()
+
 # Helper function:
 def samp_impl_neg(item_ids , n, excludes=[] , p = None):
-    return np.random.choice( np.setdiff1d(item_ids, excludes), size=int(n) ) #TODO: Add p to this call. Does p need to sum to 1? Need to subset p.
+    #mod the p vector for excludes
+    if p:
+        item_indices = np.isin( item_ids, excludes ) # find the indices of the excludes
+        p_unbalanced = p[ ~item_indices ]
+        p = p_unbalanced/p_unbalanced.sum()
+    return np.random.choice( np.setdiff1d(item_ids, excludes), size=int(n), p=p ) 
 
 # Input: 
 #   user_ids: vector containing unique user IDs
