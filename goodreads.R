@@ -235,8 +235,7 @@ test <- bind_rows(add_column(test_positive, label = 1), add_column(test_negative
 validation <- add_column(validation, label = 1)
 
 
-
-# Add my reading group to training data ----------------------------------------
+# Add my book club to training data --------------------------------------------
 
 #Create a new "user_id" for my reading group and list books that we've liked and disliked
 book_club_user_id <- max(users2keep$new_user_id) + 1
@@ -363,4 +362,14 @@ recommendations <-
 # 9. Lamb: The Gospel According to Biff, Christ's Childhood...
 # 10. Mere Christianity
   
- 
+# Top recommendations (before accounting for popularity bias but AFTER excluding our books from test and validation): 
+# 1. Waterfall (River of Time #1)
+# 2. The Hiding Place
+# 3. Bonhoeffer: Pastor, Martyr, Prophet, Spy
+# 4. How Do You Kill 11 Million People?: Why the Truth Mat
+# 5. The Lion, the Witch and the Wardrobe
+# 6. Unbroken: A World War II Story of Survival, Resilience, and Redemption	
+# 7. Chronicles Of Narnia Boxed Set
+# 8. Th3ee https://www.goodreads.com/book/show/8875201-thr3e
+# 9. So Not Happening (The Charmed Life, #1)
+#10. Holy Bible: King James Version
