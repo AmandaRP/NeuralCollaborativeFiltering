@@ -3,6 +3,9 @@ Notes on challenges and improvements:
 1. The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). 
   Would be nice to get an updated dataset. Can't find "My Heart Belongs in Blue Ridge".
   
+2. Couldn't find the following books:
+  The 49th Mistic https://www.goodreads.com/book/show/36548233-the-49th-mystic
+  My Heart Belongs in Blue Ridge
 
 2. Challenge: Searching the book info df by title. Example title: "Safely Home" returns 8 rows. 
   Differences accounted by:

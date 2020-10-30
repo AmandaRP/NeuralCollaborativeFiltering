@@ -149,6 +149,59 @@ interactions_negative <-
   select(user_id, book_id)
 
 
+# Add my book club to training data --------------------------------------------
+
+#Create a new "user_id" for my reading group and list books that we've liked and disliked
+book_club_user_id <- max(users2keep$new_user_id) + 1
+users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = book_club_user_id))
+book_club_interactions <- 
+  tribble(
+    ~user_id,    ~book_id, ~rating,
+    book_club_user_id, 4493,  5, # Safely Home
+    book_club_user_id, 16031, 4, # Sophie's Heart
+    book_club_user_id, 6345,  4, # Long Way Gone
+    book_club_user_id, 4145,  4, # When Crickets Cry
+    book_club_user_id, 14625, 5, # Redeeming Love - Francine Rivers
+    book_club_user_id, 5080, 5, # Mark of the Lion Series - Francine Rivers (A Voice in the Wind)
+    book_club_user_id, 9142, 5, # Mark of the Lion Series - Francine Rivers (An Echo in the Darkness)
+    book_club_user_id, 5353, 5, # Mark of the Lion Series - Francine Rivers (As Sure as the Dawn)
+    book_club_user_id, 501, 1, # The Red Tent- Anita Diamant 
+    book_club_user_id, 50008, 1, # Lace Maker by Laura Frantz (though Susan Loved It) 
+    book_club_user_id, 7464,  1, # At Home in Mitford
+    book_club_user_id, 35269, 1  # The Hideaway
+  ) 
+
+interactions_positive %<>%
+  bind_rows(
+    book_club_interactions %>% 
+      filter(rating >= 4) %>%
+      select(book_id, user_id)
+    )
+
+
+interactions_negative %<>%
+  bind_rows(
+    book_club_interactions %>% 
+      filter(rating <= 2) %>%
+      select(user_id, book_id)
+  )
+
+
+# train <- bind_rows(train, 
+#                    #positive:
+#                    book_club_interactions %>% 
+#                      filter(rating >= 4) %>%
+#                      select(book_id, user_id) %>%
+#                      mutate(label = 1),
+#                    #negative:
+#                    book_club_interactions %>% 
+#                      filter(rating <= 2) %>%
+#                      select(book_id, user_id) %>%
+#                      mutate(label = 0)
+# )
+
+
+
 # Compose Train/Validation/Test sets --------------------------------------
 
 # Method (following the paper):
@@ -157,9 +210,17 @@ interactions_negative <-
 # - Test: 1 positive, 100 negative (for each user)
 
 # Positives:
-test_positive <- interactions_positive %>% group_by(user_id) %>% slice_sample(n = 1) 
-validation <- anti_join(interactions_positive, test_positive) %>% group_by(user_id) %>% slice_sample(n = 1) 
-train_positive <- anti_join(interactions_positive, bind_rows(validation, test_positive) )
+test_positive <- interactions_positive %>% 
+  filter(user_id != book_club_user_id) %>% # Don't want to include my club's books in test (need to keep all training data)
+  group_by(user_id) %>% 
+  slice_sample(n = 1) 
+validation <- interactions_positive %>%
+  filter(user_id != book_club_user_id) %>% # Don't want to include my club's books in validation (need to keep all training data)
+  anti_join(test_positive) %>% 
+  group_by(user_id) %>% 
+  slice_sample(n = 1) 
+train_positive <- anti_join(interactions_positive, 
+                            bind_rows(validation, test_positive) )
 
 # Calculate number of negative items that need sampled for test and training sets:
 neg_pos_ratio_train <- 4
@@ -196,7 +257,9 @@ train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(us
 # TODO: Try the following using R's lapply or purrr.
 
 # Negative implicits for TEST:
-df <- filter(interaction_cnt, num_implicit_neg_2sample_4test > 0) 
+df <- interaction_cnt %>% 
+  filter(num_implicit_neg_2sample_4test > 0) %>%
+  filter(user_id != book_club_user_id) # Don't need to sample TEST items for book club.
 tic()
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                   item_ids = new_book_id_df$book_id,  
@@ -234,42 +297,6 @@ train <- bind_rows(add_column(train_positive, label = 1), add_column(train_negat
 test <- bind_rows(add_column(test_positive, label = 1), add_column(test_negative, label = 0))
 validation <- add_column(validation, label = 1)
 
-
-# Add my book club to training data --------------------------------------------
-
-#Create a new "user_id" for my reading group and list books that we've liked and disliked
-book_club_user_id <- max(users2keep$new_user_id) + 1
-users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = book_club_user_id))
-book_club_interactions <- 
-  tribble(
-    ~user_id,    ~book_id, ~rating,
-    book_club_user_id, 4493,  5, # Safely Home
-    book_club_user_id, 16031, 4, # Sophie's Heart
-    book_club_user_id, 6345,  4, # Long Way Gone
-    book_club_user_id, 4145,  4, # When Crickets Cry
-    book_club_user_id, 14625, 5, # Redeeming Love - Francine Rivers
-    book_club_user_id, 5080, 5, # Mark of the Lion Series - Francine Rivers (A Voice in the Wind)
-    book_club_user_id, 9142, 5, # Mark of the Lion Series - Francine Rivers (An Echo in the Darkness)
-    book_club_user_id, 5353, 5, # Mark of the Lion Series - Francine Rivers (As Sure as the Dawn)
-    book_club_user_id, 501, 1, # The Red Tent- Anita Diamant 
-    book_club_user_id, 50008, 1, # Lace Maker by Laura Frantz (though Susan Loved It) 
-    book_club_user_id, 7464,  1, # At Home in Mitford
-    book_club_user_id, 35269, 1  # The Hideaway
-  ) 
-
-#Add our books to training data
-train <- bind_rows(train, 
-                   #positive:
-                   book_club_interactions %>% 
-                     filter(rating >= 4) %>%
-                     select(book_id, user_id) %>%
-                     mutate(label = 1),
-                   #negative:
-                   book_club_interactions %>% 
-                     filter(rating <= 2) %>%
-                     select(book_id, user_id) %>%
-                     mutate(label = 0)
-)
 
 
 # Define model ------------------------------------------------------------
@@ -379,3 +406,7 @@ recommendations <-
 # 8. Th3ee https://www.goodreads.com/book/show/8875201-thr3e
 # 9. So Not Happening (The Charmed Life, #1)
 #10. Holy Bible: King James Version
+  
+# Top recommendations (after accounting for popularity bias and AFTER excluding our books from test and validation): 
+# 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe. I think this is because I'm not sampling implicit negatives for my group now.   
+  
