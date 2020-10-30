@@ -247,6 +247,12 @@ book_club_interactions <-
     book_club_user_id, 16031, 4, # Sophie's Heart
     book_club_user_id, 6345,  4, # Long Way Gone
     book_club_user_id, 4145,  4, # When Crickets Cry
+    book_club_user_id, 14625, 5, # Redeeming Love - Francine Rivers
+    book_club_user_id, 5080, 5, # Mark of the Lion Series - Francine Rivers (A Voice in the Wind)
+    book_club_user_id, 9142, 5, # Mark of the Lion Series - Francine Rivers (An Echo in the Darkness)
+    book_club_user_id, 5353, 5, # Mark of the Lion Series - Francine Rivers (As Sure as the Dawn)
+    book_club_user_id, 501, 1, # The Red Tent- Anita Diamant 
+    book_club_user_id, 50008, 1, # Lace Maker by Laura Frantz (though Susan Loved It) 
     book_club_user_id, 7464,  1, # At Home in Mitford
     book_club_user_id, 35269, 1  # The Hideaway
   ) 
@@ -292,7 +298,7 @@ history <-
     x = list(user_input = as.array(train$user_id), 
              item_input = as.array(train$book_id)),
     y = as.array(train$label),
-    epochs = 2,
+    epochs = 5,
     batch_size = 2048, 
     validation_data = list(list(user_input = as.array(validation$user_id), 
                                 item_input = as.array(validation$book_id)), 
