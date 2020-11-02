@@ -125,7 +125,80 @@ for(i in 1:30){
 toc()
 ```
 
-The following is estimated to take 61 hours
+The following dbplyr code is expected to take 18.5 hours:
+
+```{r}
+exclude <- bind_rows(train_positive, 
+                     validation, 
+                     test_positive, 
+                     train_negative, 
+                     test_negative)
+
+copy_to(con, exclude, "exclude",
+        temporary = FALSE,
+        indexes = list(
+          c("book_id", "user_id")
+        )
+)
+
+copy_to(con, new_book_id_df, "new_book_id",
+        temporary = FALSE,
+        indexes = list("book_id")
+)
+
+new_book_id_db <- tbl(con, "new_book_id")
+exclude_db <- tbl(con, "exclude")
+
+tic()
+result <- list()
+for(i in 1:100){
+  user <- df[i, "user_id"][[1]]
+  num_sample <- df[i, "num_implicit_neg_2sample_4test"][[1]]
+  result[[i]] <- 
+    new_book_id_db %>%
+    anti_join(
+      filter(exclude_db, user_id == user),
+      by = "book_id"
+    ) %>%
+    collect() %>%
+    slice_sample(n = num_sample) # This has to come after collect b/c it isn't implemented in dbplyr (yet?). Maybe do with SQL code.
+    #slice_sample(n = 100)
+  #print(i)
+}
+toc()
+```
+
+Maybe try writing my own sql so that sampling is done in the database? Didn't quite get the following to work.S
+
+```{r}
+# > query %>% show_query()
+# <SQL>
+#   SELECT * FROM `new_book_id` AS `LHS`
+# WHERE NOT EXISTS (
+#   SELECT 1 FROM (SELECT *
+#                    FROM `exclude`
+#                  WHERE (`user_id` = 126.0)) AS `RHS`
+#   WHERE (`LHS`.`book_id` = `RHS`.`book_id`)
+# )
+# ORDER BY RAND() LIMIT num_sample
+
+query_string <- "SELECT * FROM `new_book_id` AS `LHS`
+ WHERE NOT EXISTS (
+   SELECT 1 FROM (SELECT *
+                    FROM `exclude`
+                  WHERE (`user_id` = 126.0)) AS `RHS`
+   WHERE (`LHS`.`book_id` = `RHS`.`book_id`)
+ )
+ ORDER BY RAND() LIMIT num_sample"
+
+query <- dbplyr::build_sql(query_string, con = con)
+
+tbl(con, sql(query))
+```
+
+
+
+The following is estimated to take 61 hours. (Note: Can't do the following using dbplyr b/c it doesn't have purrr::map functionality)
 
 ```{r}
 tic()
