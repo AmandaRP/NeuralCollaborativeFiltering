@@ -254,7 +254,6 @@ train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(us
 
 
 # Sample implicit negatives to fill out train and test sets
-# TODO: Try the following using R's lapply or purrr.
 
 # Negative implicits for TEST:
 df <- interaction_cnt %>% 
@@ -276,6 +275,7 @@ implicit_neg_samples_test$item <- as.integer(implicit_neg_samples_test$item) #Ch
 test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(user_id = user, book_id = item))
 
 # Negatives for TRAIN:
+# TODO: Move to sampling in each epoch.
 df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
 tic()
 implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
@@ -291,6 +291,7 @@ implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
 toc()
 implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
 train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item))
+
 
 #Put it all together:
 train <- bind_rows(add_column(train_positive, label = 1), add_column(train_negative, label = 0)) 
@@ -409,4 +410,9 @@ recommendations <-
   
 # Top recommendations (after accounting for popularity bias and AFTER excluding our books from test and validation): 
 # 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe. I think this is because I'm not sampling implicit negatives for my group now.   
+  
+# Top recommendations (after accounting for popularity bias and AFTER excluding our books from test and validation, but making sure that group is given implicit negatives): 
+# 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe). 
+# Not sure why. Maybe my group doesn't have enough data? Maybe need a different populartiy bias sampling dist? Maybe need to sample for each epoch?
+  
   
