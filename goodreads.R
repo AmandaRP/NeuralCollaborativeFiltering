@@ -12,6 +12,11 @@ library(reticulate)
 source_python("sample_implicit_negatives.py") #Used to call function sample_implicit_negatives
 
 
+# Set variables -----------------------------------------------------------
+
+num_epochs <- 10
+
+
 # Download GoodReads data ---------------------------------------------------------------
 
 # Data available at: https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/home 
@@ -187,21 +192,6 @@ interactions_negative %<>%
   )
 
 
-# train <- bind_rows(train, 
-#                    #positive:
-#                    book_club_interactions %>% 
-#                      filter(rating >= 4) %>%
-#                      select(book_id, user_id) %>%
-#                      mutate(label = 1),
-#                    #negative:
-#                    book_club_interactions %>% 
-#                      filter(rating <= 2) %>%
-#                      select(book_id, user_id) %>%
-#                      mutate(label = 0)
-# )
-
-
-
 # Compose Train/Validation/Test sets --------------------------------------
 
 # Method (following the paper):
@@ -287,14 +277,22 @@ implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
                                                                          train_negative, 
                                                                          test_negative) %>%
                                                     rename(user = user_id, item = book_id),
+                                                  num_batches = num_epochs, # Obtain different samples for each epoch
                                                   p = new_book_id_df$p)
 toc()
 implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
-train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item))
+# Replicate the explicit negatives for each epoch and add an epoch number:
+train_negative %<>% 
+  mutate(num = num_epochs) %>%
+  uncount(num_epochs) %>%
+  group_by(user_id, book_id) %>% # Label epoch number
+  mutate(epoch_id = 1:num_epochs) %>%
+  ungroup()
+# Add in the implicit negatives (TODO: Make sure there is an epoch_id column)
+train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item, epoch_id = TODO))
 
 
-#Put it all together:
-train <- bind_rows(add_column(train_positive, label = 1), add_column(train_negative, label = 0)) 
+#Put it all together (we'll compose training data for each epoch later):
 test <- bind_rows(add_column(test_positive, label = 1), add_column(test_negative, label = 0))
 validation <- add_column(validation, label = 1)
 
@@ -311,29 +309,55 @@ model <- ncf_model(num_users = max(users2keep$new_user_id) + 1,
 # Train model -------------------------------------------------------------
 
 # First define callbacks to stop model early when validation loss increases and to save best model
-callback_list <- list(
-  callback_early_stopping(patience = 2),
-  callback_model_checkpoint(filepath = "model.h5", 
-                            monitor = "val_loss", 
-                            save_best_only = TRUE)
-)
+#callback_list <- list(
+#  callback_early_stopping(patience = 2),
+#  callback_model_checkpoint(filepath = "model.h5", 
+#                            monitor = "val_loss", 
+#                            save_best_only = TRUE)
+#)
 
-# Train model
+# training loop
+train_loss <- val_loss <- train_acc <- val_acc <- rep(NA, num_epochs)
+patience <- 2
 tic()
-history <- 
-  model %>% 
-  fit(
-    x = list(user_input = as.array(train$user_id), 
-             item_input = as.array(train$book_id)),
-    y = as.array(train$label),
-    epochs = 5,
-    batch_size = 2048, 
-    validation_data = list(list(user_input = as.array(validation$user_id), 
-                                item_input = as.array(validation$book_id)), 
-                           as.array(validation$label)),
-    shuffle = TRUE, 
-    callbacks = callback_list
-  ) 
+for(epoch in 1:num_epochs){
+  cat("Epoch", epoch, "\n")
+  
+  train <- bind_rows(add_column(train_positive, label = 1), 
+                     add_column(train_negative %>%
+                                  filter(epoch_id == epoch) %>%
+                                  select(-epoch_id),
+                                label = 0
+                                )
+                     )
+  
+  history <- model %>% 
+    fit(
+      x = list(user_input = as.array(train$user_id), 
+               item_input = as.array(train$book_id)),
+      y = as.array(train$label),
+      epochs = 1, batch_size = 256, verbose = 1, shuffle = TRUE,
+      validation_data = list(list(user_input = as.array(validation$user_id), 
+                                  item_input = as.array(validation$book_id)), 
+                             as.array(validation$label))
+    ) 
+  
+  train_loss[epoch] <- history$metrics$loss #train loss
+  train_acc[epoch] <- history$metrics$accuracy
+  val_loss[epoch] <- history$metrics$val_loss
+  val_acc[epoch] <- history$metrics$val_accuracy
+  
+  # Save the best model (according to validation loss) 
+  if(epoch == 1 || val_loss[epoch] <= best){
+    best <- val_loss[epoch]
+    save_model_hdf5(model, "model.h5")
+  }
+  
+  # Stop early if the validation loss is greater than (or equal to) the previous X epochs where X = patience
+  if(epoch > patience && all(val_loss[epoch] >= val_loss[epoch - 1:patience])){
+    break
+  }
+}
 toc()
 
 # Load best model:
@@ -342,8 +366,9 @@ model <- load_model_hdf5("model.h5")
 
 # Evaluate results --------------------------------------------------------
 
-history
+#history
 #plot(history)
+# TODO: Plot train_loss val_loss train_acc  val_acc
 
 # Evaluate returns same metrics that were defined in the compile (accuracy in this case)
 (results <- model %>% evaluate(list(test$user_id, test$book_id), test$label))
