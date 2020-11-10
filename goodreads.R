@@ -248,7 +248,8 @@ train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(us
 # Negative implicits for TEST:
 df <- interaction_cnt %>% 
   filter(num_implicit_neg_2sample_4test > 0) %>%
-  filter(user_id != book_club_user_id) # Don't need to sample TEST items for book club.
+  filter(user_id != book_club_user_id) %>% # Don't need to sample TEST items for book club.
+  ungroup()
 tic()
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                   item_ids = new_book_id_df$book_id,  
@@ -266,7 +267,7 @@ test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(u
 
 # Negatives for TRAIN:
 # TODO: Move to sampling in each epoch.
-df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) 
+df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) %>% ungroup()
 tic()
 implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
                                                   item_ids = new_book_id_df$book_id, 
