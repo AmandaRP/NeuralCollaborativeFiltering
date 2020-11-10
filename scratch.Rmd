@@ -125,7 +125,7 @@ for(i in 1:30){
 toc()
 ```
 
-The following dbplyr code is expected to take 18.5 hours:
+The following dbplyr code is expected to take 23 hours (based on 100 samples):
 
 ```{r}
 exclude <- bind_rows(train_positive, 
@@ -133,6 +133,8 @@ exclude <- bind_rows(train_positive,
                      test_positive, 
                      train_negative, 
                      test_negative)
+
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = ":memory:")
 
 copy_to(con, exclude, "exclude",
         temporary = FALSE,
@@ -149,26 +151,24 @@ copy_to(con, new_book_id_df, "new_book_id",
 new_book_id_db <- tbl(con, "new_book_id")
 exclude_db <- tbl(con, "exclude")
 
-tic()
 result <- list()
-for(i in 1:100){
+tic()
+for(i in 1:250){
   user <- df[i, "user_id"][[1]]
   num_sample <- df[i, "num_implicit_neg_2sample_4test"][[1]]
-  result[[i]] <- 
-    new_book_id_db %>%
+  result[[i]] <- new_book_id_db %>%
     anti_join(
       filter(exclude_db, user_id == user),
       by = "book_id"
-    ) %>%
-    collect() %>%
-    slice_sample(n = num_sample) # This has to come after collect b/c it isn't implemented in dbplyr (yet?). Maybe do with SQL code.
-    #slice_sample(n = 100)
-  #print(i)
+    ) %>% 
+    #collect() %>%
+    #slice_sample(n = num_sample)
+    slice_sample(n = num_sample) %>% 
+    collect()
+  
 }
 toc()
 ```
-
-Maybe try writing my own sql so that sampling is done in the database? Didn't quite get the following to work.S
 
 ```{r}
 # > query %>% show_query()
@@ -195,6 +195,71 @@ query <- dbplyr::build_sql(query_string, con = con)
 
 tbl(con, sql(query))
 ```
+
+spark trail below. Takes way too long. 12.6 seconds per user.
+
+```{r}
+exclude <- bind_rows(train_positive, 
+                     validation, 
+                     test_positive, 
+                     train_negative, 
+                     test_negative)
+
+library(sparklyr)
+library(dplyr)
+sc <- spark_connect(master = "local")
+
+excludes <- copy_to(sc, exclude, "excludes")
+new_book_ids <- copy_to(sc, new_book_id_df, "new_book_ids")
+
+#Too slow
+#tic()
+#for(i in 1:5){
+#  user <- df[i, "user_id"][[1]]
+#  num_sample <- df[i, "num_implicit_neg_2sample_4test"][[1]]
+#  result[[i]] <- new_book_ids %>%
+#    anti_join(
+#      filter(excludes, user_id == user),
+#      by = "book_id"
+#    ) %>% 
+    #collect() %>%
+    #slice_sample(n = num_sample)
+#    slice_sample(n = num_sample) %>% 
+#    collect()
+  
+#}
+#toc()
+
+
+#Very fast. Gives "lazy" result. Took 7.5 minutes for full df. But, how to unnest spark tables?
+result <- list()
+tic()
+result <- 
+df %>% 
+  ungroup() %>%
+  select(user_id, num_implicit_neg_2sample_4test) %>%
+  mutate(data2samp = map(user_id, ~  anti_join(new_book_ids, filter(excludes, user_id == .), by = "book_id") ),
+         implicit_neg_samples_test = map2(num_implicit_neg_2sample_4test, data2samp, ~ slice_sample(.y, n = .x))) %>%
+  select(-data2samp)
+toc()
+
+#not able to push nested df to spark:
+#result <- copy_to(sc, result, "result")
+
+lapply(result %>% ungroup() %>% head(2) %>% select(implicit_neg_samples_test), cat)
+tic()
+result %>%
+  head(2) %>%
+  mutate(sample_df = map(implicit_neg_samples_test, ~sdf_collect(.)))
+toc()
+  
+
+```
+
+
+
+```
+
 
 
 
