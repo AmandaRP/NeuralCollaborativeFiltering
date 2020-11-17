@@ -1,21 +1,23 @@
 import numpy as np
 import pandas as pd
 
-def p_rebalance( p_broke ):
-    # make p sum to one, proportionally
-    return p_broke/p_broke.sum()
+#def p_rebalance( p_broke ):
+#    # make p sum to one, proportionally
+#    return p_broke/p_broke.sum()
 
 # Helper function:
-def samp_impl_neg(item_ids , n, excludes=[] , num_batches, p = None):
+def samp_impl_neg(item_ids , n, excludes=[] , num_batches = 1, p = None):
     #mod the p vector for excludes
     if p:
         item_indices = np.isin( item_ids, excludes ) # find the indices of the excludes
         p_unbalanced = p[ ~item_indices ]
         p = p_unbalanced/p_unbalanced.sum()
-        items_to_sample = np.setdiff1d(item_ids, excludes)
-    for i in range(0, num_batches):
-        TODO = np.random.choice(items_to_sample , size=int(n), p=p , replace = False) 
-    return TODO
+    #items_to_sample = np.setdiff1d(item_ids, excludes)
+    #for i in range(0, num_batches):
+        #TODO = np.random.choice(items_to_sample , size=int(n), p=p , replace = False) 
+    #return TODO
+    #np.random.choice(items_to_sample , size=int(n), p=p , replace = False)
+    return np.random.choice(np.setdiff1d(item_ids, excludes), size=int(n), p=p, replace = False)
 
 # Input: 
 #   user_ids: vector containing unique user IDs
@@ -37,3 +39,4 @@ def sample_implicit_negatives(user_ids, item_ids, num_items_to_sample, df_exclud
     df = pd.DataFrame(implicits, columns = ["user", "item"])
     return df.explode("item", ignore_index = True)
     #TODO: See what class the item column is. Seems to be a list type.
+
