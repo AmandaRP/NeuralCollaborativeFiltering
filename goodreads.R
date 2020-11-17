@@ -141,7 +141,8 @@ users2keep <- interactions_positive %>%
 interactions_positive %<>% 
   inner_join(users2keep) %>%
   select(-user_id) %>%
-  rename(user_id = new_user_id)
+  rename(user_id = new_user_id) %>%
+  select(user_id, book_id)
 interactions %<>% 
   inner_join(users2keep) %>%
   select(-user_id) %>%
@@ -180,7 +181,7 @@ interactions_positive %<>%
   bind_rows(
     book_club_interactions %>% 
       filter(rating >= 4) %>%
-      select(book_id, user_id)
+      select(user_id, book_id)
     )
 
 
@@ -203,12 +204,14 @@ interactions_negative %<>%
 test_positive <- interactions_positive %>% 
   filter(user_id != book_club_user_id) %>% # Don't want to include my club's books in test (need to keep all training data)
   group_by(user_id) %>% 
-  slice_sample(n = 1) 
+  slice_sample(n = 1) %>%
+  ungroup()
 validation <- interactions_positive %>%
   filter(user_id != book_club_user_id) %>% # Don't want to include my club's books in validation (need to keep all training data)
   anti_join(test_positive) %>% 
   group_by(user_id) %>% 
-  slice_sample(n = 1) 
+  slice_sample(n = 1) %>%
+  ungroup()
 train_positive <- anti_join(interactions_positive, 
                             bind_rows(validation, test_positive) )
 
@@ -224,7 +227,8 @@ interaction_cnt <-
   arrange(desc(excess_neg)) %>% 
   mutate(num_explicit_neg_2sample_4test = min(100, max(0,excess_neg))) %>%
   mutate(num_implicit_neg_2sample_4test = 100 - num_explicit_neg_2sample_4test) %>%
-  mutate(num_implicit_neg_2sample_4train = (excess_neg < 0) * abs(excess_neg)) 
+  mutate(num_implicit_neg_2sample_4train = (excess_neg < 0) * abs(excess_neg)) %>%
+  ungroup()
 interaction_cnt
 
 # Put excess explicit negatives (up to 100) in test set: 
@@ -236,7 +240,9 @@ test_negative <- interactions_negative %>%
   inner_join(interaction_cnt) %>%
   mutate(subsamp = map2(data, num_explicit_neg_2sample_4test, ~slice_sample(.x, n=.y))) %>% 
   select(user_id, subsamp) %>%
-  unnest(cols = c(subsamp)) 
+  unnest(cols = c(subsamp)) %>%
+  ungroup()
+
 
 # Remaining explicit negatives go in training set:
 # TODO: Some users may have more than neg_pos_ratio_train times as many negatives as positives (if they have an abundant number of explicit negatives). OK or need to sample?
@@ -248,53 +254,27 @@ train_negative <- anti_join(interactions_negative, test_negative) %>% arrange(us
 # Negative implicits for TEST:
 df <- interaction_cnt %>% 
   filter(num_implicit_neg_2sample_4test > 0) %>%
-  filter(user_id != book_club_user_id) %>% # Don't need to sample TEST items for book club.
+  filter(user_id != book_club_user_id) %>% # Don't need to sample test items for book club (keep all for training).
   ungroup()
 tic()
 implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                   item_ids = new_book_id_df$book_id,  
                                                   num_items_to_sample = df$num_implicit_neg_2sample_4test,
-                                                  df_exclude = bind_rows(train_positive, 
-                                                                         validation, 
-                                                                         test_positive, 
-                                                                         train_negative, 
-                                                                         test_negative) %>%
+                                                  df_exclude = bind_rows(train_positive %>% select(user_id, book_id), 
+                                                                         validation %>% select(user_id, book_id), 
+                                                                         test_positive %>% select(user_id, book_id), 
+                                                                         train_negative %>% select(user_id, book_id), 
+                                                                         test_negative  %>% select(user_id, book_id)) %>%
                                                     rename(user = user_id, item = book_id),
                                                   p = new_book_id_df$p)
 toc()
 implicit_neg_samples_test$item <- as.integer(implicit_neg_samples_test$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
 test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(user_id = user, book_id = item))
 
-# Negatives for TRAIN:
-# TODO: Move to sampling in each epoch.
-df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) %>% ungroup()
-tic()
-implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
-                                                  item_ids = new_book_id_df$book_id, 
-                                                  num_items_to_sample = df$num_implicit_neg_2sample_4train,
-                                                  df_exclude = bind_rows(train_positive, 
-                                                                         validation, 
-                                                                         test_positive, 
-                                                                         train_negative, 
-                                                                         test_negative) %>%
-                                                    rename(user = user_id, item = book_id),
-                                                  num_batches = num_epochs, # Obtain different samples for each epoch
-                                                  p = new_book_id_df$p)
-toc()
-implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
-# Replicate the explicit negatives for each epoch and add an epoch number:
-train_negative %<>% 
-  mutate(num = num_epochs) %>%
-  uncount(num_epochs) %>%
-  group_by(user_id, book_id) %>% # Label epoch number
-  mutate(epoch_id = 1:num_epochs) %>%
-  ungroup()
-# Add in the implicit negatives (TODO: Make sure there is an epoch_id column)
-train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item, epoch_id = TODO))
-
 
 #Put it all together (we'll compose training data for each epoch later):
-test <- bind_rows(add_column(test_positive, label = 1), add_column(test_negative, label = 0))
+test <- bind_rows(add_column(test_positive  %>% select(user_id, book_id), label = 1), 
+                  add_column(test_negative  %>% select(user_id, book_id), label = 0))
 validation <- add_column(validation, label = 1)
 
 
@@ -324,10 +304,40 @@ tic()
 for(epoch in 1:num_epochs){
   cat("Epoch", epoch, "\n")
   
-  train <- bind_rows(add_column(train_positive, label = 1), 
-                     add_column(train_negative %>%
-                                  filter(epoch_id == epoch) %>%
-                                  select(-epoch_id),
+  # Negative implicit samples for TRAIN:
+  df <- filter(interaction_cnt, num_implicit_neg_2sample_4train > 0) %>% ungroup()
+  implicit_neg_samples_train <- sample_implicit_negatives(user_ids = df$user_id,
+                                                          item_ids = new_book_id_df$book_id, 
+                                                          num_items_to_sample = df$num_implicit_neg_2sample_4train,
+                                                          df_exclude = bind_rows(train_positive %>% select(user_id, book_id), 
+                                                                                 validation %>% select(user_id, book_id), 
+                                                                                 test_positive %>% select(user_id, book_id), 
+                                                                                 train_negative  %>% select(user_id, book_id), 
+                                                                                 test_negative %>% select(user_id, book_id)) %>%
+                                                            rename(user = user_id, item = book_id),
+                                                          num_batches = num_epochs, # Obtain different samples for each epoch
+                                                          p = new_book_id_df$p)
+  implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
+  # Replicate the explicit negatives for each epoch and add an epoch number:
+  #train_negative %<>% 
+  #  mutate(num = num_epochs) %>%
+  #  uncount(num_epochs) %>%
+  #  group_by(user_id, book_id) %>% # Label epoch number
+  #  mutate(epoch_id = 1:num_epochs) %>%
+  #  ungroup()
+  # Add in the implicit negatives (TODO: Make sure there is an epoch_id column)
+  #train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item, epoch_id = TODO))
+  
+  
+  train <- bind_rows(add_column(train_positive %>% 
+                                  select(user_id, book_id), 
+                                label = 1), 
+                     add_column(implicit_neg_samples_train %>% 
+                                  rename(user_id = user, book_id = item),
+                                label = 0),
+                     add_column(train_negative, #%>%
+                                  #filter(epoch_id == epoch) #%>%
+                                  #select(-epoch_id),
                                 label = 0
                                 )
                      )
@@ -391,6 +401,10 @@ compute_ndcg(test_pred, 10)
 # test loss: 0.08511109 
 # test accuracy: 0.97462940 
 
+# 11/15 run: pop bias. sampling impl negatives for each epoch:
+# hr 0.89 
+# ndcg 0.731
+
 # Make recommendations ----------------------------------------------------
 
 #Remove the books that we've already read:
@@ -405,10 +419,10 @@ recommendations <-
   select(-n, -p) %>%
   arrange(desc(pred))
 
-  recommendations %>% 
-    inner_join(book_info) %>% 
-    select(pred, book_id, work_id, title, publication_year, url) %>% 
-    View()
+recommendations %>% 
+  inner_join(book_info) %>% 
+  select(pred, book_id, work_id, title, publication_year, url) %>% 
+  View()
 
 # Top recommendations (before accounting for popularity bias and before excluding our books from test and validation):
 # 1. The Lion, the Witch, and the Wardrobe
