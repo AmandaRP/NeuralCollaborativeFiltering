@@ -1,11 +1,10 @@
 Neural Collaborative Filtering
 ================
 
-This is an implementation of Neural Collaborative Filtering (NCF) using
-[R Keras](https://keras.rstudio.com/index.html). The model (a deep
-neural network for binary implicit feedback) is described in the
-following paper and implemented by its authors using Keras (see [this
-GitHub
+An implementation of Neural Collaborative Filtering (NCF) using [R
+Keras](https://keras.rstudio.com/index.html). The model (a deep neural
+network for binary implicit feedback) is described in the following
+paper and implemented by its authors using Keras (see [this GitHub
 repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
 
 > Xiangnan He, Lizi Liao, Hanwang Zhang, Liqiang Nie, Xia Hu and
@@ -20,4 +19,7 @@ repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
     Movie Lense and Pinterest, both of which are described in detail in
     their paper. See the `ml_pinterest.R` script in this repo. Choose
     between the two datasets via the `movielense` flag.
-2.  Coming soon: Book recommendations from GoodReads
+2.  GoodReads book recommendations: See the `goodreads.R` script in this
+    repo. A Christian book subset is provided in the `/Data` directory.
+    To create your own genre subset, use the `/Data/genre_subset.R`
+    script.
