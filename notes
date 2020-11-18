@@ -1,5 +1,9 @@
 Notes on challenges and improvements:
 
+0. I might be able to filter the Christian books better. My last recommendation had non-Christian books in it. 
+I think the problem is that even if one user (mistakenly) put it on the "Christian" shelf, then 
+it's included in the dataset. However, I'm not sure the data is available to do this.
+
 1. The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). 
   Would be nice to get an updated dataset. Can't find "My Heart Belongs in Blue Ridge".
   
