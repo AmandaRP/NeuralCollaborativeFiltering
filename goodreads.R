@@ -455,4 +455,18 @@ recommendations %>%
 # 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe). 
 # Not sure why. Maybe my group doesn't have enough data? Maybe need a different populartiy bias sampling dist? Maybe need to sample for each epoch?
   
+# Top recommendations (after accounting for pop bias, after excluding our books from test & val, giving our group implicit negs, 
+#                      re-sampling impl negatives for each epoch, and decreasing batch size to 256). Took a 2.5 days to run.
+# 1. Unbroken  (Probably not. Not fiction) https://www.goodreads.com/book/show/18770394-unbroken
+# 2. The Brothers Karamazov (No. Not Christian) https://www.goodreads.com/book/show/19538.The_Brothers_Karamazov
+# 3. Blankets (No. Not Christian.) https://www.goodreads.com/book/show/2928869-blankets
+# 4. Just Mercy: A Story of Justice and Redemption (Maybe?) https://www.goodreads.com/book/show/21803032-just-mercy
+# 5. 	Ordinary Grace (Yes) https://www.goodreads.com/book/show/32660478-ordinary-grace
+# 6. The Hiding Place
+# 7. The Five Love Languages: How to Express Heartfelt Commitment to Your Mate	(no)
+# 8. Under The Banner Of Heaven (No!)
+# 9. Waterfall (River of Time #1) (no, based on reviews) https://www.goodreads.com/book/show/7879278-waterfall?from_search=true&from_srp=true&qid=x0KUH4IxfU&rank=1
+# 10. Lamb: The Gospel According to Biff, Christ's Childhood (no. Children's book)
+# 11. 
+
   
