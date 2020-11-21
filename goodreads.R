@@ -20,7 +20,7 @@ num_epochs <- 10
 # Download GoodReads data ---------------------------------------------------------------
 
 # Data available at: https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/home 
-#     See https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/shelves?authuser=0
+#                See https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/shelves?authuser=0
 path <- "/data/"
 #download.file("https://drive.google.com/u/0/uc?export=download&confirm=uMLl&id=1zmylV7XW2dfQVCLeg1LbllfQtHD2KUon", str_c(path, "goodreads_interactions.csv"))
 #download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr", str_c(path, "book_id_map.csv"))
@@ -29,8 +29,8 @@ path <- "/data/"
 # Read data ---------------------------------------------------------------
 
 interactions <- read_csv(str_c(path, "goodreads_interactions.csv"), col_names = TRUE)
-book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) #Need for linking to book info dataset
-#user_id_map <- read_csv(str_c(path, "user_id_map.csv"), col_names = TRUE)
+book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) # Need for linking to book info dataset
+#user_id_map <- read_csv(str_c(path, "user_id_map.csv"), col_names = TRUE) # Don't need
 
 # Use the Christian specific genre book information (available in Data folder):
 system("tar -xzf Data/goodreads_books_christian.tar.gz")
@@ -43,6 +43,16 @@ system("rm goodreads_books_christian.RData")
 # Clean up book_info:
 book_info <- christian_book_info #rename to be more generic
 rm(christian_book_info)
+tmp <- christian_book_info[1:10,] %>% 
+  mutate(shelf_list = map(popular_shelves, ~select(.x, name))) %>%
+  mutate(christian_fiction = map(shelf_list, ~ .x %in% c("christian_fiction", "fiction")))
+  #TODO: filtering by christian fiction is NOT working.
+
+map_lgl(twords, ~ all(c("strong", "weak") %in% .x))       
+  mutate(genre = cross2(popular_shelves, c("", "fiction"), ~has_element(.x, .y))) %>% View()
+
+  mutate(genre = map_lgl(genre, any)) %>%
+  filter(genre) 
 book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -christian)
 book_info %<>% select(book_id, work_id, title, popular_shelves:image_url) #reorder
 book_info %<>%
@@ -455,6 +465,7 @@ recommendations %>%
 # 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe). 
 # Not sure why. Maybe my group doesn't have enough data? Maybe need a different populartiy bias sampling dist? Maybe need to sample for each epoch?
   
+# 2020-11-16 model:
 # Top recommendations (after accounting for pop bias, after excluding our books from test & val, giving our group implicit negs, 
 #                      re-sampling impl negatives for each epoch, and decreasing batch size to 256). Took a 2.5 days to run.
 # 1. Unbroken  (Probably not. Not fiction) https://www.goodreads.com/book/show/18770394-unbroken
@@ -467,6 +478,6 @@ recommendations %>%
 # 8. Under The Banner Of Heaven (No!)
 # 9. Waterfall (River of Time #1) (no, based on reviews) https://www.goodreads.com/book/show/7879278-waterfall?from_search=true&from_srp=true&qid=x0KUH4IxfU&rank=1
 # 10. Lamb: The Gospel According to Biff, Christ's Childhood (no. Children's book)
-# 11. 
+
 
   
