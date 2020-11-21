@@ -43,10 +43,12 @@ system("rm goodreads_books_christian.RData")
 # Clean up book_info:
 book_info <- christian_book_info #rename to be more generic
 rm(christian_book_info)
-tmp <- christian_book_info[1:10,] %>% 
-  mutate(shelf_list = map(popular_shelves, ~select(.x, name))) %>%
-  mutate(christian_fiction = map(shelf_list, ~ .x %in% c("christian_fiction", "fiction")))
-  #TODO: filtering by christian fiction is NOT working.
+# Filter out non-fiction:
+book_info %<>% 
+  mutate(shelf_list = map(popular_shelves, ~select(.x, name))) %>% 
+  mutate(christian_fiction = map(shelf_list, ~ any(unlist(.x) %in% c("christian-fiction", "fiction")))) %>% #can't look for "fiction" string pattern b/c it will be found in "nonfiction"
+  filter(christian_fiction ==  TRUE) 
+  
 
 map_lgl(twords, ~ all(c("strong", "weak") %in% .x))       
   mutate(genre = cross2(popular_shelves, c("", "fiction"), ~has_element(.x, .y))) %>% View()
