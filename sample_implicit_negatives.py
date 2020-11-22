@@ -1,23 +1,23 @@
 import numpy as np
 import pandas as pd
 
-#def p_rebalance( p_broke ):
-#    # make p sum to one, proportionally
-#    return p_broke/p_broke.sum()
-
 # Helper function:
 def samp_impl_neg(item_ids , n, excludes=[] , num_batches = 1, p = None):
+
+    item_indices = np.isin( item_ids, excludes, assume_unique=True) # find the indices of the excludes
+    
     #mod the p vector for excludes
     if p:
-        item_indices = np.isin( item_ids, excludes ) # find the indices of the excludes
-        p_unbalanced = p[ ~item_indices ]
+        p_unbalanced = np.array(p)[ ~item_indices ]
         p = p_unbalanced/p_unbalanced.sum()
     #items_to_sample = np.setdiff1d(item_ids, excludes)
     #for i in range(0, num_batches):
         #TODO = np.random.choice(items_to_sample , size=int(n), p=p , replace = False) 
-    #return TODO
     #np.random.choice(items_to_sample , size=int(n), p=p , replace = False)
-    return np.random.choice(np.setdiff1d(item_ids, excludes), size=int(n), p=p, replace = False)
+    #items_to_sample = np.setdiff1d(item_ids, excludes, assume_unique = True)
+    items_to_sample = np.array(item_ids)[ ~item_indices ]
+    #return item_indices
+    return np.random.choice(items_to_sample, size=min(int(n), len(items_to_sample)) , p=p, replace = False)
 
 # Input: 
 #   user_ids: vector containing unique user IDs
@@ -35,7 +35,7 @@ def sample_implicit_negatives(user_ids, item_ids, num_items_to_sample, df_exclud
     gpd = df_exclude.groupby("user")
     # iterate to create exclude lists
     user_exclude_items = [ (user, np.array(pd.DataFrame(df_small).item, dtype=int)) for (user, df_small) in gpd if user in d.keys()]
-    implicits = [ (user, samp_impl_neg(item_ids, d[user], excludes=items)) for (user, items) in user_exclude_items]
+    implicits = [ (user, samp_impl_neg(item_ids, d[user], excludes=items, p=p)) for (user, items) in user_exclude_items]
     df = pd.DataFrame(implicits, columns = ["user", "item"])
     return df.explode("item", ignore_index = True)
     #TODO: See what class the item column is. Seems to be a list type.
