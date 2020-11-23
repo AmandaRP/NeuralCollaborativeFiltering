@@ -49,12 +49,6 @@ book_info %<>%
   mutate(christian_fiction = map(shelf_list, ~ any(unlist(.x) %in% c("christian-fiction", "fiction")))) %>% #can't look for "fiction" string pattern b/c it will be found in "nonfiction"
   filter(christian_fiction ==  TRUE) 
   
-
-map_lgl(twords, ~ all(c("strong", "weak") %in% .x))       
-  mutate(genre = cross2(popular_shelves, c("", "fiction"), ~has_element(.x, .y))) %>% View()
-
-  mutate(genre = map_lgl(genre, any)) %>%
-  filter(genre) 
 book_info %<>% select(-language_code, -is_ebook, -title_without_series, -ratings_count, -text_reviews_count, -series, -isbn, -country_code, -asin, -kindle_asin, -format, -isbn13, -publication_day, -publication_month, -edition_information, -christian)
 book_info %<>% select(book_id, work_id, title, popular_shelves:image_url) #reorder
 book_info %<>%
@@ -169,25 +163,29 @@ interactions_negative <-
 
 # Add my book club to training data --------------------------------------------
 
-#Create a new "user_id" for my reading group and list books that we've liked and disliked
+# Create a new "user_id" for my reading group and list books that we've liked and disliked
+# Book ids are those provided in the original dataset.
 book_club_user_id <- max(users2keep$new_user_id) + 1
 users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = book_club_user_id))
 book_club_interactions <- 
   tribble(
-    ~user_id,    ~book_id, ~rating,
-    book_club_user_id, 4493,  5, # Safely Home
-    book_club_user_id, 16031, 4, # Sophie's Heart
-    book_club_user_id, 6345,  4, # Long Way Gone
-    book_club_user_id, 4145,  4, # When Crickets Cry
-    book_club_user_id, 14625, 5, # Redeeming Love - Francine Rivers
-    book_club_user_id, 5080, 5, # Mark of the Lion Series - Francine Rivers (A Voice in the Wind)
-    book_club_user_id, 9142, 5, # Mark of the Lion Series - Francine Rivers (An Echo in the Darkness)
-    book_club_user_id, 5353, 5, # Mark of the Lion Series - Francine Rivers (As Sure as the Dawn)
-    book_club_user_id, 501, 1, # The Red Tent- Anita Diamant 
-    book_club_user_id, 50008, 1, # Lace Maker by Laura Frantz (though Susan Loved It) 
-    book_club_user_id, 7464,  1, # At Home in Mitford
-    book_club_user_id, 35269, 1  # The Hideaway
+    ~user_id,    ~work_id, ~rating,
+    book_club_user_id, 281710,  5, # Safely Home
+    book_club_user_id, 1080682, 4, # Sophie's Heart
+    book_club_user_id, 49776093,  4, # Long Way Gone
+    book_club_user_id, 233843,  4, # When Crickets Cry
+    book_club_user_id, 820210, 5, # Redeeming Love - Francine Rivers
+    book_club_user_id, 883913, 5, # Mark of the Lion Series - Francine Rivers (A Voice in the Wind)
+    book_club_user_id, 522675, 5, # Mark of the Lion Series - Francine Rivers (An Echo in the Darkness)
+    book_club_user_id, 92159, 5, # Mark of the Lion Series - Francine Rivers (As Sure as the Dawn)
+    book_club_user_id, 1041558, 1, # The Red Tent- Anita Diamant 
+    book_club_user_id, 56364628, 1, # The Lacemaker by Laura Frantz (though Susan Loved It) 
+    book_club_user_id, 1222486,  1, # At Home in Mitford
+    book_club_user_id, 42455432, 1  # The Hideaway
   ) 
+
+#TODO: Convert work_id's above to new book id
+book_club_interactions %<>% left_join(new_book_id_df) %>% select(-n, -p)
 
 interactions_positive %<>%
   bind_rows(
@@ -241,12 +239,15 @@ interaction_cnt <-
   mutate(num_implicit_neg_2sample_4test = 100 - num_explicit_neg_2sample_4test) %>%
   mutate(num_implicit_neg_2sample_4train = (excess_neg < 0) * abs(excess_neg)) %>%
   ungroup()
+# Don't want to put my group in test set:
+interaction_cnt[which(interaction_cnt$user_id == book_club_user_id),"num_implicit_neg_2sample_4test"] <- 0
 interaction_cnt
+
 
 # Put excess explicit negatives (up to 100) in test set: 
 # TODO: Should I keep all explicit negatives in training? This might be too much class imbalance.
 # Note: If dataset had timestamps, would be better to split on time instead of randomly
-test_negative <- interactions_negative %>% 
+test_negative <- interactions_negative %>%  
   group_by(user_id) %>%
   nest() %>%
   inner_join(interaction_cnt) %>%
@@ -311,7 +312,7 @@ model <- ncf_model(num_users = max(users2keep$new_user_id) + 1,
 
 # training loop
 train_loss <- val_loss <- train_acc <- val_acc <- rep(NA, num_epochs)
-patience <- 2
+patience <- 1
 tic()
 for(epoch in 1:num_epochs){
   cat("Epoch", epoch, "\n")
@@ -480,6 +481,13 @@ recommendations %>%
 # 8. Under The Banner Of Heaven (No!)
 # 9. Waterfall (River of Time #1) (no, based on reviews) https://www.goodreads.com/book/show/7879278-waterfall?from_search=true&from_srp=true&qid=x0KUH4IxfU&rank=1
 # 10. Lamb: The Gospel According to Biff, Christ's Childhood (no. Children's book)
+
+
+# Above experiments are suspect (today's date: 11/22) --------------------------
+# Reasons:
+# 1. p (popularity bias) was not correctly being passed from sampling function to sampling function.
+# 2. At some point I renumbered book id's (to reduce model params). My book club id's didn't get updated.
+
 
 
   
