@@ -392,7 +392,17 @@ model <- load_model_hdf5("model.h5")
 
 #history
 #plot(history)
-# TODO: Plot train_loss val_loss train_acc  val_acc
+# Plot train_loss val_loss train_acc  val_acc
+results <- as_tibble(list(train_acc=train_acc, train_loss=train_loss,val_acc=val_acc,val_loss=val_loss)) %>%
+  drop_na() %>%
+  mutate(epoch = row_number()) %>% 
+  pivot_longer(cols = c("train_acc", "train_loss", "val_acc", "val_loss"),
+               names_to = "metric") %>%
+  separate(col = metric, into = c("split", "metric"), "_")
+results %>% 
+  ggplot(aes(epoch, value, color=split)) + 
+  geom_line() +
+  facet_grid(. ~metric)
 
 # Evaluate returns same metrics that were defined in the compile (accuracy in this case)
 (results <- model %>% evaluate(list(test$user_id, test$book_id), test$label))
@@ -408,15 +418,20 @@ source("evaluation.R")
 compute_hr(test_pred, 10)
 compute_ndcg(test_pred, 10)
 
-# Before accounting for popularity bias:
+# Before accounting for popularity bias (just sampled impl train negatives once):
 # hr 0.912
 # ndcg 0.753
 # test loss: 0.08511109 
 # test accuracy: 0.97462940 
 
-# 11/15 run: pop bias. sampling impl negatives for each epoch:
+# 11/15 run: sampling impl train negatives for each epoch (no accounting for pop bias)
 # hr 0.89 
 # ndcg 0.731
+
+# 11/23 Accounted for popularity bias:
+# hr 0.589
+# ndcg 0.369
+
 
 # Make recommendations ----------------------------------------------------
 
@@ -487,7 +502,9 @@ recommendations %>%
 # Reasons:
 # 1. p (popularity bias) was not correctly being passed from sampling function to sampling function.
 # 2. At some point I renumbered book id's (to reduce model params). My book club id's didn't get updated.
+# 3. Also for this run, I only kept books that where on either "fiction" or "christian-fiction" shelves.
 
-
+# Top recommendations from 11/23 model:
+# LOTS of Francine Rivers books (with some Lynn Austin thrown in)
 
   
