@@ -3,6 +3,7 @@ Notes on challenges and improvements:
 0. I might be able to filter the Christian books better. My last recommendation had non-Christian books in it. 
 I think the problem is that even if one user (mistakenly) put it on the "Christian" shelf, then 
 it's included in the dataset. However, I'm not sure the data is available to do this.
+UPDATE: DONE.
 
 1. The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). 
   Would be nice to get an updated dataset. Can't find "My Heart Belongs in Blue Ridge".
@@ -17,7 +18,7 @@ it's included in the dataset. However, I'm not sure the data is available to do 
   - Different publications of the same book
   - Different formats (paperback vs audio book)
   
-  DONE: Use work_id in origianl dataset to collapse these records. (See code starting on line 42.)
+  DONE: Use work_id in origianl dataset to collapse these records. (See code starting on line 63.)
 
 > book_info %>% filter(title == "Safely Home") %>% select(book_id, title, link, authors, publication_year)
 # A tibble: 8 x 5
