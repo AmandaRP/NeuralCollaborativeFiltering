@@ -33,3 +33,81 @@ UPDATE: DONE.
 7   80277 Safely Home https://www.goodreads.com/book/show/4134017-safely-home  <df[,2] [2 × 2]>             2007 (kindle)
 8   81902 Safely Home https://www.goodreads.com/book/show/12326579-safely-home <df[,2] [1 × 2]>             2011 (ebook)
 
+
+---------------------------- metrics
+
+# Before accounting for popularity bias (just sampled impl train negatives once):
+# hr 0.912
+# ndcg 0.753
+# test loss: 0.08511109 
+# test accuracy: 0.97462940 
+
+# 11/15 run: sampling impl train negatives for each epoch (no accounting for pop bias)
+# hr 0.89 
+# ndcg 0.731
+
+# 11/23 Accounted for popularity bias (and filtered by fiction books):
+# hr 0.589
+# ndcg 0.369
+# Run time: ~14 hours
+
+
+---------------------------- recommendations
+
+# Top recommendations (before accounting for popularity bias and before excluding our books from test and validation):
+# 1. The Lion, the Witch, and the Wardrobe
+# 2. Redeeming Love by Francine Rivers (https://www.goodreads.com/book/show/24377351-redeeming-love)
+# 3. The 5 Love Languages: The Secret to Love that Lasts	(not fiction)
+# 4. The Hiding Place
+# 5. A Voice in the Wind (Mark of the Lion, #1)
+# 6. Chronicles Of Narnia Boxed Set
+# 7. Unbroken: A World War II Story of Survival, Resilienc...
+# 8. An Echo in the Darkness (Mark of the Lion, #2)
+# 9. Lamb: The Gospel According to Biff, Christ's Childhood...
+# 10. Mere Christianity
+  
+# Top recommendations (before accounting for popularity bias but AFTER excluding our books from test and validation): 
+# 1. Waterfall (River of Time #1)
+# 2. The Hiding Place
+# 3. Bonhoeffer: Pastor, Martyr, Prophet, Spy
+# 4. How Do You Kill 11 Million People?: Why the Truth Mat
+# 5. The Lion, the Witch and the Wardrobe
+# 6. Unbroken: A World War II Story of Survival, Resilience, and Redemption	
+# 7. Chronicles Of Narnia Boxed Set
+# 8. Th3ee https://www.goodreads.com/book/show/8875201-thr3e
+# 9. So Not Happening (The Charmed Life, #1)
+#10. Holy Bible: King James Version
+  
+# Top recommendations (after accounting for popularity bias and AFTER excluding our books from test and validation): 
+# 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe. I think this is because I'm not sampling implicit negatives for my group now.   
+  
+# Top recommendations (after accounting for popularity bias and AFTER excluding our books from test and validation, but making sure that group is given implicit negatives): 
+# 1. All popular books are being recommended (chronicals of narnia, mere Christianity, the Lion the Witch and the Wardrobe). 
+# Not sure why. Maybe my group doesn't have enough data? Maybe need a different populartiy bias sampling dist? Maybe need to sample for each epoch?
+  
+# 2020-11-16 model:
+# Top recommendations (after accounting for pop bias, after excluding our books from test & val, giving our group implicit negs, 
+#                      re-sampling impl negatives for each epoch, and decreasing batch size to 256). Took a 2.5 days to run.
+# 1. Unbroken  (Probably not. Not fiction) https://www.goodreads.com/book/show/18770394-unbroken
+# 2. The Brothers Karamazov (No. Not Christian) https://www.goodreads.com/book/show/19538.The_Brothers_Karamazov
+# 3. Blankets (No. Not Christian.) https://www.goodreads.com/book/show/2928869-blankets
+# 4. Just Mercy: A Story of Justice and Redemption (Maybe?) https://www.goodreads.com/book/show/21803032-just-mercy
+# 5. 	Ordinary Grace (Yes) https://www.goodreads.com/book/show/32660478-ordinary-grace
+# 6. The Hiding Place
+# 7. The Five Love Languages: How to Express Heartfelt Commitment to Your Mate	(no)
+# 8. Under The Banner Of Heaven (No!)
+# 9. Waterfall (River of Time #1) (no, based on reviews) https://www.goodreads.com/book/show/7879278-waterfall?from_search=true&from_srp=true&qid=x0KUH4IxfU&rank=1
+# 10. Lamb: The Gospel According to Biff, Christ's Childhood (no. Children's book)
+
+
+# Above experiments are suspect (today's date: 11/22) --------------------------
+# Reasons:
+# 1. p (popularity bias) was not correctly being passed from sampling function to sampling function.
+# 2. At some point I renumbered book id's (to reduce model params). My book club id's didn't get updated.
+# 3. Also for this run, I only kept books that where on either "fiction" or "christian-fiction" shelves.
+
+# Top recommendations from 11/23 model (accounting for popularity bias):
+# LOTS of Francine Rivers books (with some Lynn Austin thrown in)
+# model: model_20201123.h5 (also saved a version in /data)
+
+
