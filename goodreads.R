@@ -404,7 +404,7 @@ results %>%
   geom_line() +
   facet_grid(. ~metric)
 
-# Evaluate returns same metrics that were defined in the compile (accuracy in this case)
+# Evaluate returns same metrics that were defined in the compile for the test set (accuracy in this case)
 (results <- model %>% evaluate(list(test$user_id, test$book_id), test$label))
 
 # Get predictions for test set:
