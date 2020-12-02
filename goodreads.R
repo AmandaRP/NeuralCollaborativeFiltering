@@ -21,10 +21,11 @@ num_epochs <- 10
 
 # Data available at: https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/home 
 #                See https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/shelves?authuser=0
-path <- "/data/"
-#download.file("https://drive.google.com/u/0/uc?export=download&confirm=uMLl&id=1zmylV7XW2dfQVCLeg1LbllfQtHD2KUon", str_c(path, "goodreads_interactions.csv"))
+# Files needed: goodreads_interactions.csv, book_id_map.csv
+# Did not use user_id_map.csv
+path <- "Data/"
 #download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr", str_c(path, "book_id_map.csv"))
-#download.file("https://drive.google.com/uc?id=15ax-h0Oi_Oyee8gY_aAQN6odoijmiz6Q", str_c(path, "user_id_map.csv"))
+
 
 # Read data ---------------------------------------------------------------
 
@@ -312,7 +313,7 @@ model <- ncf_model(num_users = max(users2keep$new_user_id) + 1,
 
 # training loop
 train_loss <- val_loss <- train_acc <- val_acc <- rep(NA, num_epochs)
-patience <- 1
+patience <- 2
 tic()
 for(epoch in 1:num_epochs){
   cat("Epoch", epoch, "\n")
@@ -328,7 +329,6 @@ for(epoch in 1:num_epochs){
                                                                                  train_negative  %>% select(user_id, book_id), 
                                                                                  test_negative %>% select(user_id, book_id)) %>%
                                                             rename(user = user_id, item = book_id),
-                                                          num_batches = num_epochs, # Obtain different samples for each epoch
                                                           p = new_book_id_df$p)
   implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
   # Replicate the explicit negatives for each epoch and add an epoch number:
@@ -393,13 +393,13 @@ model <- load_model_hdf5("model.h5")
 #history
 #plot(history)
 # Plot train_loss val_loss train_acc  val_acc
-results <- as_tibble(list(train_acc=train_acc, train_loss=train_loss,val_acc=val_acc,val_loss=val_loss)) %>%
+metrics <- as_tibble(list(train_acc=train_acc, train_loss=train_loss,val_acc=val_acc,val_loss=val_loss)) %>%
   drop_na() %>%
   mutate(epoch = row_number()) %>% 
   pivot_longer(cols = c("train_acc", "train_loss", "val_acc", "val_loss"),
                names_to = "metric") %>%
   separate(col = metric, into = c("split", "metric"), "_")
-results %>% 
+metrics %>% 
   ggplot(aes(epoch, value, color=split)) + 
   geom_line() +
   facet_grid(. ~metric)
