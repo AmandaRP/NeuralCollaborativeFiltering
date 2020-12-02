@@ -48,19 +48,6 @@ UPDATE: DONE.
 
 --- Not sure I trust results above.
 
-# 11/23 Accounted for popularity bias (and filtered by fiction books):
-# hr 0.589 
-# ndcg 0.369 
-# test accuracy: ?
-# Run time: ~14 hours. Patience was set to only 1.
-
-# 11/24 Did NOT Accounted for popularity bias (and filtered by fiction books, sampling impl neg for each epoch):
-# hr .376
-# ndcg .201
-# test accuracy: 0.6325731
-# patience was set to only 1.
-
-# Interesting observation on two previous runs: Validation accuracy was *much* higher for run where I did NOT account for popularity bias. However, test ndcg and hr were much higher for run where I *did* account for popularity bias. Need to compare test accuracy between two runs. Would it be better to use ndcg for stopping criteria?
 
 
 ---------------------------- recommendations
@@ -111,16 +98,47 @@ UPDATE: DONE.
 # 10. Lamb: The Gospel According to Biff, Christ's Childhood (no. Children's book)
 
 
+
 # Above experiments are suspect (today's date: 11/22) --------------------------
 # Reasons:
 # 1. p (popularity bias) was not correctly being passed from sampling function to sampling function.
 # 2. At some point I renumbered book id's (to reduce model params). My book club id's didn't get updated.
 # 3. Also for this run, I only kept books that where on either "fiction" or "christian-fiction" shelves.
 
-# Top recommendations from 11/23 model (accounting for popularity bias):
+# 11/23 Accounted for popularity bias (and filtered by fiction books):
+# hr 0.589 
+# ndcg 0.369 
+# test accuracy: ?
+# Run time: ~14 hours. Patience was set to only 1.
+# Top recommendations from 11/23 model:
 # LOTS of Francine Rivers books (with some Lynn Austin thrown in)
 # model: model_20201123.h5 (also saved a version in /data)
 
 # 11/24 Did NOT Accounted for popularity bias (and filtered by fiction books, sampling impl neg for each epoch):
+# hr .376
+# ndcg .201
+# test accuracy: 0.6325731
+# patience was set to only 1.
+
+# 11/24 Did NOT Accounted for popularity bias (and filtered by fiction books, sampling impl neg for each epoch):
 # Top recommendations were most popular books: 1. The Lion the Witch & the wardrobe, 2. The Chronicals of Narnia, 3. Unbroken: A World War II Story of Survival, Resilience
 # model: model.h5 model_20201124.h5
+
+#12/2: Reran 11/23 model to verify. Only change: Set patience to 2.
+# hr (test):   0.592
+# ndcg (test):  0.373
+# validation accuracy: 0.425
+# test accuracy: 0.9552872
+# Run time: ~21 hours. (3 epochs)
+# Recommendations: Top 10 are all Francine Rivers books
+# model: model.h5 model_20201202.h5
+
+#12/3: Reran 11/24 model to verify. Only change: Set patience to 2.
+# hr (test):   
+# ndcg (test):  
+# validation accuracy: 
+# test accuracy: 
+# Run time: 
+# Recommendations: 
+
+# Interesting observation on 11/23 and 12/2 vs 11/24 and 12/3: Validation accuracy was *much* higher for run where I did NOT account for popularity bias. However, test ndcg and hr were much higher for run where I *did* account for popularity bias. Need to compare test accuracy between two runs. Would it be better to use ndcg for stopping criteria?
