@@ -312,7 +312,7 @@ model <- ncf_model(num_users = max(users2keep$new_user_id) + 1,
 #)
 
 # training loop
-train_loss <- val_loss <- train_acc <- val_acc <- rep(NA, num_epochs)
+train_loss <- val_loss <- train_acc <- val_acc  <- rep(NA, num_epochs)
 patience <- 2
 tic()
 for(epoch in 1:num_epochs){
@@ -371,14 +371,27 @@ for(epoch in 1:num_epochs){
   val_loss[epoch] <- history$metrics$val_loss
   val_acc[epoch] <- history$metrics$val_accuracy
   
+  #val_pred <- model %>% 
+  #  predict(x = list(validation$user_id, validation$book_id)) %>%
+  #  bind_cols(pred = ., validation) %>%
+  #  rename(user = user_id, item = book_id)
+  #val_ndgc[epoch] <- compute_ndcg(val_pred, 10) # I would have added this as a custom metric to the fit function, but it is not in the form fn(y_true, y_pred).
+  
   # Save the best model (according to validation loss) 
   if(epoch == 1 || val_loss[epoch] <= best){
     best <- val_loss[epoch]
     save_model_hdf5(model, "model.h5")
   }
+  # Save the best model (according to validation ndcg) 
+  #if(epoch == 1 || val_ndgc[epoch] >= best){
+  #  best <- val_ndgc[epoch]
+  #  save_model_hdf5(model, "model.h5")
+  #}
   
   # Stop early if the validation loss is greater than (or equal to) the previous X epochs where X = patience
   if(epoch > patience && all(val_loss[epoch] >= val_loss[epoch - 1:patience])){
+  # Stop early if the validation ndgc is less than (or equal to) the previous X epochs where X = patience
+  #if(epoch > patience && all(val_ndgc[epoch] <= val_ndgc[epoch - 1:patience])){
     break
   }
 }
@@ -386,7 +399,7 @@ toc()
 
 # Load best model:
 model <- load_model_hdf5("model.h5")
-
+#model <- load_model_hdf5("model_20201202.h5")
 
 # Evaluate results --------------------------------------------------------
 
@@ -438,5 +451,10 @@ recommendations %>%
   select(pred, book_id, work_id, title, publication_year, url) %>% 
   View()
 
-
+# Add popularity measure to recommendation data frame:
+reccdf <-  
+recommendations %>% 
+  inner_join(book_info) %>% 
+  inner_join(new_book_id_df, by = c("book_id", "work_id")) %>%
+  select(pred, p, book_id, work_id, title, publication_year, url)
   
