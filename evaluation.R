@@ -13,6 +13,7 @@ compute_hr <- function(test_pred, k){
 
 # Compute ndcg:
 # Note that the current implementation assumes one 1 for each user. If this is not the case, need to divide by an idcg.
+# test_pred is a data frame with the following columns: pred, user, item, label
 compute_ndcg <- function(test_pred, k){
   test_pred %>% 
     group_by(user) %>% 
