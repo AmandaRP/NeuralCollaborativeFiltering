@@ -115,11 +115,10 @@ UPDATE: DONE.
 # model: model_20201123.h5 (also saved a version in /data)
 
 # 11/24 Did NOT Accounted for popularity bias (and filtered by fiction books, sampling impl neg for each epoch):
-# hr .376
-# ndcg .201
+# hr (test) .376
+# ndcg (test) .201
 # test accuracy: 0.6325731
 # patience was set to only 1.
-
 # 11/24 Did NOT Accounted for popularity bias (and filtered by fiction books, sampling impl neg for each epoch):
 # Top recommendations were most popular books: 1. The Lion the Witch & the wardrobe, 2. The Chronicals of Narnia, 3. Unbroken: A World War II Story of Survival, Resilience
 # model: model.h5 model_20201124.h5
@@ -131,14 +130,37 @@ UPDATE: DONE.
 # test accuracy: 0.9552872
 # Run time: ~21 hours. (3 epochs)
 # Recommendations: Top 10 are all Francine Rivers books
-# model: model.h5 model_20201202.h5
+# Kendall-Tau correlation with list ranked by popularity (see code under next model): 0.01319364
+# model: model_20201202.h5
+
+
 
 #12/3: Reran 11/24 model to verify. Only change: Set patience to 2.
-# hr (test):   
-# ndcg (test):  
-# validation accuracy: 
-# test accuracy: 
-# Run time: 
-# Recommendations: 
+# hr (test): 0.904   
+# ndcg (test): 0.749  
+# validation accuracy: 0.7982491
+# test accuracy: 0.9723996
+# Run time: 35 hours (5 epochs)
+# Recommendations: #1 broken: A World War II Story of Survival, Resilience, and Redemption (non-fiction), #2 	Mere Christianity (non-fiction), #3 	The Hiding Place (non-fiction), #4 	The Screwtape Letters, #5 The Brothers Karamazov, #6 The Case for Christ: A Journalist's Personal Investigation of the Evidence for Jesus	(non fiction) #7 	Black: The Birth of Evil (The Circle, #1), #8 The Great Divorce (CS Lewis, fiction), #9 	A Canticle For Leibowitz, #10 The Time Keeper (not Christian?), #11 	Same Kind of Different as Me, #12 	Just Mercy: A Story of Justice and Redemption (Christian?), #13 Life Without Limits: Inspiration For A Ridiculously Good (nonfiction), #14 Peace Like a River (not Christian?), #15 Holy Bible: King James Version (non fiction)
+# Kendall-Tau correlation with list ranked by popularity: 0.03407536
+#   cor(x = reccdf %>% arrange(desc(pred)) %>% select(work_id) %>% distinct(), y = reccdf %>% arrange(desc(p)) %>% select(work_id) %>% distinct())
+# model: model_20201203.h5
 
-# Interesting observation on 11/23 and 12/2 vs 11/24 and 12/3: Validation accuracy was *much* higher for run where I did NOT account for popularity bias. However, test ndcg and hr were much higher for run where I *did* account for popularity bias. Need to compare test accuracy between two runs. Would it be better to use ndcg for stopping criteria?
+# Sanity check. Popularity model (no deep learning)
+#12/3: Reran 11/24 model to verify. Only change: Set patience to 2.
+# Code: 
+    popularity_pred <- inner_join(test_pred, new_book_id_df, by = c("item" = "book_id"))  %>% 
+    select(-pred, -n, -work_id) %>% 
+    mutate(pred = p) %>% 
+    select(pred, user, item, label)
+    compute_hr(popularity_pred, 10)
+# hr: 0.817 ("better" than 12/2 model, worse than 12/3 model)
+# ndcg: 0.655 ("better" than 12/2 model, worse than 12/3 model)
+
+#
+
+	
+
+# model: 
+
+# Interesting observation on 11/23 and 12/2 vs 11/24 and 12/3: Validation accuracy was *much* higher for run where I did NOT account for popularity bias. However, test ndcg and hr were much higher for run where I *did* account for popularity bias. Need to compare test accuracy between two runs. Would it be better to use ndcg for stopping criteria? (Can't currently do that since I only have positive cases in validation.)
