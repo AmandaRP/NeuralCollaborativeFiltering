@@ -157,10 +157,16 @@ UPDATE: DONE.
 # hr: 0.817 ("better" than 12/2 model, worse than 12/3 model)
 # ndcg: 0.655 ("better" than 12/2 model, worse than 12/3 model)
 
-#
-
+# 12/4 Experiment: Same as 12/2 except that I used sigma = 0.1 instead of 0.01 (line 301 of goodreads.R)
+# Run time: 21.3 hours (3 epochs)
+# Test accuracy: 0.9511329
+# hr (test): 0.572
+# ndcg (test): 0.358
+# Notes: Performed worse than 12/2 model.
 	
+# TODO:
+1. Try arrow in evaluation method to speed up
+2. 12/2 model: Look at top recommendation for x top authors (to get a wider variety of authors).
 
-# model: 
 
-# Interesting observation on 11/23 and 12/2 vs 11/24 and 12/3: Validation accuracy was *much* higher for run where I did NOT account for popularity bias. However, test ndcg and hr were much higher for run where I *did* account for popularity bias. Need to compare test accuracy between two runs. Would it be better to use ndcg for stopping criteria? (Can't currently do that since I only have positive cases in validation.)
+# Thoughts: Was thinking that it be better to use ndcg for stopping criteria. (Can't currently do that since I only have positive cases in validation.) This would NOT be a good idea. Stopping should be done on loss since this is what the function is minimizing. 
