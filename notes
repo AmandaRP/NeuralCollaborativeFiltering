@@ -174,7 +174,14 @@ UPDATE: DONE.
 3. I think patience needs tweaked. (Need to check that last x *changes in loss* were positive, not that current loss is greater than last x losses.)
 
 
-0.7905762
+# Thoughts: 
+1. Was thinking that it be better to use ndcg for stopping criteria. (Can't currently do that since I only have positive cases in validation.) This would NOT be a good idea. Stopping should be done on loss since this is what the function is minimizing.
+
+# Thoughts on why I may not be getting good recommendations:
+1. My group's training data may not be large enough. Need a model that is better for cold start (takes side features such as author & book description)0.79057620.7905762
 
 
-# Thoughts: Was thinking that it be better to use ndcg for stopping criteria. (Can't currently do that since I only have positive cases in validation.) This would NOT be a good idea. Stopping should be done on loss since this is what the function is minimizing. 
+2. No hyperparameter tuning? (My AWS instance is too small... ~7 hours per epoch)
+3. Point out criticisms of NCF?
+
+
