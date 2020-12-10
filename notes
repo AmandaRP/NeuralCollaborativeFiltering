@@ -130,6 +130,11 @@ UPDATE: DONE.
 # test accuracy: 0.9552872
 # Run time: ~21 hours. (3 epochs)
 # Recommendations: Top 10 are all Francine Rivers books
+#   Looked at at top recommendation for x top authors (to get a wider variety of authors).
+#   Author #2's book (Wendy Alec, Son of Perdition) had pred score of 0.7905762
+#   Code: rec_m_12_2 %>% group_by(authors) %>%  slice_max(pred) #rec_m_12_2 is line 449 of goodreads.R. Also use load(rec_m_12_2)
+#   TODO: Plot histogram of Francine Rivers book pred scores. Add marking for score of author #2. 
+#         Need some purrr magic to make new logical variable: is_francine
 # Kendall-Tau correlation with list ranked by popularity (see code under next model): 0.01319364
 # model: model_20201202.h5
 
@@ -147,7 +152,6 @@ UPDATE: DONE.
 # model: model_20201203.h5
 
 # Sanity check. Popularity model (no deep learning)
-#12/3: Reran 11/24 model to verify. Only change: Set patience to 2.
 # Code: 
     popularity_pred <- inner_join(test_pred, new_book_id_df, by = c("item" = "book_id"))  %>% 
     select(-pred, -n, -work_id) %>% 
@@ -165,8 +169,12 @@ UPDATE: DONE.
 # Notes: Performed worse than 12/2 model.
 	
 # TODO:
-1. Try arrow in evaluation method to speed up
-2. 12/2 model: Look at top recommendation for x top authors (to get a wider variety of authors).
+1. See TODO under 12/2 model 
+2. Try arrow in evaluation method to speed up
+3. I think patience needs tweaked. (Need to check that last x *changes in loss* were positive, not that current loss is greater than last x losses.)
+
+
+0.7905762
 
 
 # Thoughts: Was thinking that it be better to use ndcg for stopping criteria. (Can't currently do that since I only have positive cases in validation.) This would NOT be a good idea. Stopping should be done on loss since this is what the function is minimizing. 

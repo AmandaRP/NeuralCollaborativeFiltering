@@ -448,7 +448,8 @@ recommendations <-
 
 recommendations %>% 
   inner_join(book_info) %>% 
-  select(pred, book_id, work_id, title, publication_year, url) %>% 
+  select(pred, book_id, work_id, title, authors, publication_year, url) %>% 
+  mutate(authors = map(authors, ~filter(., !(role %in% c("Narrator", "Translator", "Read by"))))) %>% #Remove narrator, translator
   View()
 
 # Add popularity measure to recommendation data frame:
