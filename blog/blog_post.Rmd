@@ -1,0 +1,21 @@
+---
+title: "blog_post"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+load("recommendations_12_2.rds")
+
+#plot:
+recommendations %>% 
+  ggplot(aes(pred)) + 
+  geom_histogram() + 
+  geom_tile("") + 
+  geom_label(x = "Predicted Score")
+
+```
+
