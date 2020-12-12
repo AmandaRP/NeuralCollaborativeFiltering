@@ -14,8 +14,12 @@ load("recommendations_12_2.rds")
 recommendations %>% 
   ggplot(aes(pred)) + 
   geom_histogram() + 
-  geom_tile("") + 
-  geom_label(x = "Predicted Score")
+  ggtitle("Predicted Book Scores for Reading Group") + 
+  xlab("Predicted Score")
+
+```
+
+```{r}
 
 ```
 
