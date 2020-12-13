@@ -6,7 +6,7 @@ it's included in the dataset. However, I'm not sure the data is available to do 
 UPDATE: DONE.
 
 1. The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). 
-  Would be nice to get an updated dataset. Can't find "My Heart Belongs in Blue Ridge".
+  Would be nice to get an updated dataset. 
   
 2. Couldn't find the following books:
   The 49th Mistic https://www.goodreads.com/book/show/36548233-the-49th-mystic
@@ -180,7 +180,7 @@ UPDATE: DONE.
 1. Was thinking that it be better to use ndcg for stopping criteria. (Can't currently do that since I only have positive cases in validation.) This would NOT be a good idea. Stopping should be done on loss since this is what the function is minimizing.
 
 # Thoughts on why I may not be getting good recommendations:
-1. My group's training data may not be large enough. Need a model that is better for cold start (takes side features such as author & book description)0.79057620.7905762
+1. My group's training data may not be large enough. Need a model that is better for cold start (takes side features such as author & book description)
 2. No hyperparameter tuning? (My AWS instance is too small... ~7 hours per epoch)
 3. Point out criticisms of NCF?
 
