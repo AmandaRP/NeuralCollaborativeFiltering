@@ -7,6 +7,59 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+I am part of a Christian fiction book club. I also have an interest in recommender systems. So, I thought it would be fun to recommend new books for my book club. 
+
+The technical details: In this post, I'll be using Neural Collaborative Filtering. TODO: Reference. I created a version of the model in R Keras, which is available on [GitHub](TODO).
+
+The model is designed for binary implicit feedback (positive and negative preferences that we glean from the user's history).
+
+# The Data
+
+I used a dataset from GoodReads.com to train the model. It is available [here](TODO).
+
+## Infering Likes and Dislikes
+
+Filter interactions by books that the reader liked. Assume that a reader likes the book if:
+1. They read the book AND (either gave it 4 or 5 stars OR didn't provide rating). That is:
+`(is_read == 1 & (0 == rating | rating >= 4))`, OR
+2. The book is on their shelf and not read yet. That is, `(is_read == 0)`.
+
+NOTE: For every case where is_read = 0, no rating has been provided (however, sometimes a review exists) 
+     filter(interactions_filtered, is_read == 0) %>% select(rating) %>% table()
+     When is_read = 1, ratings range from 0 to 5 (0 means not rated?)
+     filter(interactions_filtered, is_read == 1) %>% select(rating) %>% table()
+
+I defined books with a rating of 1 or 2 to be books that the user did NOT like. Books with a score of 3 were not used for model training.
+
+There do exist cases where no rating has been provided (value of `rating` is 0), but a review exists. I think an enhancement for obtaining more positive and negative examples would be to mine the sentiment of reviews for these instances.
+
+
+
+After performing these steps, I filtered out users who did not have atleast 3 positives. This threshold could be tweaked. TODO: Show histogram of num books per user.
+
+
+
+
+## Data for our book club
+
+I added our club's books to the dataset. We have read dozens of books, but the following were useful as "good" and "bad" books (others not listed were soewhere in the middle and not used for training).
+
+
+"Good" books:
+
+Books we didn't like:
+
+We would have also used the following books for training, but they weren't in the dataset:
+The 49th Mistic https://www.goodreads.com/book/show/36548233-the-49th-mystic (good or bad?)
+My Heart Belongs in Blue Ridge
+
+## Train/Validation/Test Split
+
+
+
+
+
+
 ```{r}
 load("recommendations_12_2.rds")
 
@@ -46,4 +99,13 @@ library(patchwork)
 
 p1 + inset_element(p2, left = 0.3, bottom = 0.3, right = 1, top = .9)
 ```
+
+
+*  The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). It would be nice to obtain an updated datset. 
+  
+
+# Thoughts on why I may not be getting good recommendations:
+1. My group's training data may not be large enough. I may need a model that is better for the cold start, i.e. a model that takes side features such as author and book description.
+2. Due to hardware limitations and slow model training, I didn't perform hyper-parameter tuning. Rather I used the defaults that were used in the NCF paper. (I am using a TODO AWS instance, training is slow (~7 hours per epoch).) A grid search on the hyperparamter space. 
+3. Point out criticisms of NCF?
 
