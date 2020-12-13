@@ -20,6 +20,8 @@ recommendations %>%
 ```
 
 ```{r}
+# The following works, but I'm thinking there must be a more elegant method.
+rec_m_12_2 %>% mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0)) 
 
 ```
 
