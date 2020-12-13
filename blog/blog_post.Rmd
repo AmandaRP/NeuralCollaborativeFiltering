@@ -11,17 +11,39 @@ knitr::opts_chunk$set(echo = TRUE)
 load("recommendations_12_2.rds")
 
 #plot:
-recommendations %>% 
+p1 <- recommendations %>% 
   ggplot(aes(pred)) + 
   geom_histogram() + 
-  ggtitle("Predicted Book Scores for Reading Group") + 
-  xlab("Predicted Score")
+  ggtitle("Distribution of Predicted Book Scores for Reading Group") + 
+  xlab("Predicted Score") +
+  ylab("Book Count") + 
+  theme_classic()
+p1
 
 ```
 
 ```{r}
 # The following works, but I'm thinking there must be a more elegant method.
-rec_m_12_2 %>% mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0)) 
+rec_m_12_2 <- rec_m_12_2 %>% mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0)) 
 
+```
+
+```{r}
+p2 <- rec_m_12_2 %>% 
+  mutate(author1 = if_else(francinerivers == TRUE, "Francine Rivers", "Other")) %>%
+  filter(pred >= 0.5) %>%
+  ggplot(aes(pred, fill = author1)) +
+  geom_histogram(alpha=0.7, position="identity") + 
+  #guides(fill = guide_legend(reverse = TRUE)) +
+  theme_classic() + 
+  theme(legend.title = element_blank()) + 
+  labs(y = element_blank(), x = element_blank())
+p2
+```
+
+```{r}
+library(patchwork)
+
+p1 + inset_element(p2, left = 0.3, bottom = 0.3, right = 1, top = .9)
 ```
 
