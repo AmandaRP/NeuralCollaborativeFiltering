@@ -7,15 +7,18 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-I am part of a Christian fiction book club. I also have an interest in recommender systems. So, I thought it would be fun to recommend new books for my book club. 
+Over the past year+ I have enjoyed being part of a Christian fiction book club. I also have an interest in recommender systems. So, I thought it would be fun to recommend new books for my book club. 
 
 The technical details: In this post, I'll be using Neural Collaborative Filtering. TODO: Reference. I created a version of the model in R Keras, which is available on [GitHub](TODO).
 
 The model is designed for binary implicit feedback (positive and negative preferences that we glean from the user's history).
 
+
 # The Data
 
 I used a dataset from GoodReads.com to train the model. It is available [here](TODO).
+
+The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). It would be nice to obtain an updated datset. 
 
 ## Infering Likes and Dislikes
 
@@ -42,13 +45,16 @@ After performing these steps, I filtered out users who did not have atleast 3 po
 
 ## Data for our book club
 
-I added our club's books to the dataset. We have read dozens of books, but the following were useful as "good" and "bad" books (others not listed were soewhere in the middle and not used for training).
+I added our club's books to the dataset. We have read dozens of books, but the following were useful as "good" and "bad" books.
 
 
 "Good" books:
 
 Books we didn't like:
 
+
+Other books: 
+(others not listed were soewhere in the middle and not used for training)
 We would have also used the following books for training, but they weren't in the dataset:
 The 49th Mistic https://www.goodreads.com/book/show/36548233-the-49th-mystic (good or bad?)
 My Heart Belongs in Blue Ridge
@@ -56,7 +62,10 @@ My Heart Belongs in Blue Ridge
 ## Train/Validation/Test Split
 
 
-
+Method (following the paper):
+- Training: 4 negatives for every positive (for each user)
+- Validation: 1 positive (for each user) 
+- Test: 1 positive, 100 negative (for each user)
 
 
 
@@ -101,7 +110,6 @@ p1 + inset_element(p2, left = 0.3, bottom = 0.3, right = 1, top = .9)
 ```
 
 
-*  The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). It would be nice to obtain an updated datset. 
   
 
 # Thoughts on why I may not be getting good recommendations:
