@@ -1,5 +1,5 @@
 ---
-title: "blog_post"
+title: "Book Recommendations via Neural Collaborative Filtering"
 output: html_document
 ---
 
@@ -7,45 +7,90 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Over the past year+ I have enjoyed being part of a Christian fiction book club. I also have an interest in recommender systems. So, I thought it would be fun to recommend new books for my book club. 
+```{r}
+library(tidyverse)
+```
 
-The technical details: In this post, I'll be using Neural Collaborative Filtering. TODO: Reference. I created a version of the model in R Keras, which is available on [GitHub](TODO).
+
+```{r echo=FALSE, cache = TRUE}
+path <- "/data/"
+interactions <- read_csv(str_c(path, "goodreads_interactions.csv"), col_names = TRUE)
+book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) # Need for linking to book info dataset
+system("tar -xzf ../Data/goodreads_books_christian.tar.gz")
+load("goodreads_books_christian.RData")
+system("rm goodreads_books_christian.RData")
+
+```
+
+
+Over the past 1.5 years I have enjoyed being part of a Christian fiction book club. 
+Sadly our book club is ending as our beloved leader is moving to Ohio. I plan to continue reading books, but 
+I also have an interest in recommender systems. So, I thought it would be fun to recommend new books for my book club. 
+
+## The technical details
+
+In this post, I'll be using [Neural Collaborative Filtering](https://dl.acm.org/doi/10.1145/3038912.3052569). I created a version of the model in R Keras, which is available on [GitHub](https://github.com/AmandaRP/NeuralCollaborativeFiltering).
 
 The model is designed for binary implicit feedback (positive and negative preferences that we glean from the user's history).
 
 
 # The Data
 
-I used a dataset from GoodReads.com to train the model. It is available [here](TODO).
+To train the model I used a data set from [GoodReads.com](https://en.wikipedia.org/wiki/Goodreads), a social book cataloging system. The data is available on the [USCD Book Graph webiste](https://sites.google.com/eng.ucsd.edu/ucsdbookgraph). Specifically, I'm using three files provided on this website, each providing the following fields:
 
-The goodreads dataset that I'm working on is outdated (only 6 books from 2019, none frome 2020). It would be nice to obtain an updated datset. 
+* **interactions**: Contains fields `user_id`, `book_id`, `is_read`, `rating`, `is_reviewed`
+* **book_info**: Information about the books containing `r ncol(book_info)` fields including title, isbn, author(s), and list of shelves. 
+* **book_id_map**: books ids used to join the other two data sets together
+
+Note that this data set is a bit outdated (only 6 books from 2019, none from 2020). It would be nice to obtain an updated dat set. 
+
+
+## Filtering by genre
+
+```{r echo = FLASE}
+n_interactions_before_filtering <- nrow(interactions)
+```
+
+
+The `shelves` field is a list of virtual shelves that users have added a book to. The name is chosen by the user and can be anything such as "to read", "book club", or the name of the genre. By looking at the list of shelves, we can make some inferences about the book's genre. To limit books for my book club to Christian fiction, I included books that were on at least one shelf with "christian" in the name and at least one shelf with "fiction" in the name (ignoring "nonfiction" and "non-fiction"). This isn't a perfect method for determining genre, but it significantly reduced the data size (228,648,342 interactions reduced to 5,628,062, a 98% reduction).   
+
 
 ## Infering Likes and Dislikes
 
-Filter interactions by books that the reader liked. Assume that a reader likes the book if:
+For the NCF model, we need a list of books that each user liked and a list that they did not like, which we can deduce from the `interactions` data. Five randomly sampled rows of this data is shown below
+
+```{r}
+slice_sample(interactions, n=5)
+```
+
+We'll assume that a reader likes the book if:
+
 1. They read the book AND (either gave it 4 or 5 stars OR didn't provide rating). That is:
 `(is_read == 1 & (0 == rating | rating >= 4))`, OR
 2. The book is on their shelf and not read yet. That is, `(is_read == 0)`.
 
-NOTE: For every case where is_read = 0, no rating has been provided (however, sometimes a review exists) 
-     filter(interactions_filtered, is_read == 0) %>% select(rating) %>% table()
-     When is_read = 1, ratings range from 0 to 5 (0 means not rated?)
-     filter(interactions_filtered, is_read == 1) %>% select(rating) %>% table()
+This is an optimistic viewpoint because we may include books that the reader later reads and decides that they don't like. 
 
-I defined books with a rating of 1 or 2 to be books that the user did NOT like. Books with a score of 3 were not used for model training.
+We'll also assume that a reader did not like a book if they read it and gave it a rating of 1 or 2. Books with a score of 3 were not used for model training. 
 
-There do exist cases where no rating has been provided (value of `rating` is 0), but a review exists. I think an enhancement for obtaining more positive and negative examples would be to mine the sentiment of reviews for these instances.
+Note that there exist cases where no rating has been provided (value of `rating` is 0), but a review exists. I think an enhancement for obtaining more positive and negative examples would be to mine the sentiment of reviews for these instances.
 
+After performing these steps, I filtered out users who did not have at least 3 books that they liked (a threshold that could be tweaked). TODO: Show histogram of num books per user.
 
 
-After performing these steps, I filtered out users who did not have atleast 3 positives. This threshold could be tweaked. TODO: Show histogram of num books per user.
+```{r eval = FALSE}
+#TODO: change this dataset to filtered dataset.
+interactions %>% 
+  group_by(user_id) %>%
+  count() %>% arrange(desc(n))
+  #ggplot(aes(n)) + 
+  #geom_histogram()
+```
 
 
+## Data for my book club
 
-
-## Data for our book club
-
-I added our club's books to the dataset. We have read dozens of books, but the following were useful as "good" and "bad" books.
+I added our club's books to the data set. We have read dozens of books, but the following were those that we had a strong opinion about (either "good" and "bad").
 
 
 "Good" books:
@@ -54,7 +99,7 @@ Books we didn't like:
 
 
 Other books: 
-(others not listed were soewhere in the middle and not used for training)
+(others not listed were rated in the middle and not useful for training)
 We would have also used the following books for training, but they weren't in the dataset:
 The 49th Mistic https://www.goodreads.com/book/show/36548233-the-49th-mystic (good or bad?)
 My Heart Belongs in Blue Ridge
@@ -68,6 +113,7 @@ Method (following the paper):
 - Test: 1 positive, 100 negative (for each user)
 
 
+## Results
 
 ```{r}
 load("recommendations_12_2.rds")
