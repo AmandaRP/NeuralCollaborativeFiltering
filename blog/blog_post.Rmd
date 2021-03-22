@@ -5,6 +5,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+path <- "/home/rstudio/NeuralCollaborativeFiltering/blog/images/"
 ```
 
 ```{r}
@@ -12,54 +13,79 @@ library(tidyverse)
 ```
 
 
-```{r echo=FALSE, cache = TRUE}
-path <- "/data/"
-interactions <- read_csv(str_c(path, "goodreads_interactions.csv"), col_names = TRUE)
-book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) # Need for linking to book info dataset
-system("tar -xzf ../Data/goodreads_books_christian.tar.gz")
-load("goodreads_books_christian.RData")
-system("rm goodreads_books_christian.RData")
+<!-- ```{r echo=FALSE, cache = TRUE} -->
+<!-- path <- "/data/" -->
+<!-- interactions <- read_csv(str_c(path, "goodreads_interactions.csv"), col_names = TRUE) -->
+<!-- book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) # Need for linking to book info dataset -->
+<!-- #system("tar -xzf ../Data/goodreads_books_christian.tar.gz") -->
+<!-- load("goodreads_books_christian.RData") -->
+<!-- #system("rm goodreads_books_christian.RData") -->
 
-```
+<!-- ``` -->
 
 
-Over the past 1.5 years I have enjoyed being part of a Christian fiction book club. 
+Over the past 1.5 years I have enjoyed being part of a book club. 
 Sadly our book club is ending as our beloved leader is moving to Ohio. I plan to continue reading books, but 
 I also have an interest in recommender systems. So, I thought it would be fun to recommend new books for my book club. 
 
 ## The technical details
 
-In this post, I'll be using [Neural Collaborative Filtering](https://dl.acm.org/doi/10.1145/3038912.3052569). I created a version of the model in R Keras, which is available on [GitHub](https://github.com/AmandaRP/NeuralCollaborativeFiltering).
+In this post, I'll be using [Neural Collaborative Filtering](https://arxiv.org/pdf/1708.05031.pdf?source=post_page---------------------------). I created a version of the model in R Keras, which is available on [GitHub](https://github.com/AmandaRP/NeuralCollaborativeFiltering). Also the NCF authors have a Python version in [this GitHub repository](https://github.com/hexiangnan/neural_collaborative_filtering).
 
-The model is designed for binary implicit feedback (positive and negative preferences that we glean from the user's history).
+The model is designed for binary feedback (that is, positive and negative user preferences that we glean from the user's history). The neural network model architecture is shown below (image from the original NCF paper by He et al).
+
+
+```{r, echo=FALSE,out.width="49%", out.height="20%",fig.show='hold',fig.align='center'}
+knitr::include_graphics(str_c(path,"NCFarchitecture.png"))
+``` 
 
 
 # The Data
 
-To train the model I used a data set from [GoodReads.com](https://en.wikipedia.org/wiki/Goodreads), a social book cataloging system. The data is available on the [USCD Book Graph webiste](https://sites.google.com/eng.ucsd.edu/ucsdbookgraph). Specifically, I'm using three files provided on this website, each providing the following fields:
+To train the model I used a data set originally obtained from [GoodReads.com](https://en.wikipedia.org/wiki/Goodreads), a social book cataloging system. The data is available on the [USCD Book Graph webiste](https://sites.google.com/eng.ucsd.edu/ucsdbookgraph). Specifically, I'm using three files provided on this website, each containing the following fields:
 
 * **interactions**: Contains fields `user_id`, `book_id`, `is_read`, `rating`, `is_reviewed`
-* **book_info**: Information about the books containing `r ncol(book_info)` fields including title, isbn, author(s), and list of shelves. 
+* **book_info**: Information about the books containing TODO fields including title, isbn, author(s), and list of shelves. 
 * **book_id_map**: books ids used to join the other two data sets together
 
-Note that this data set is a bit outdated (only 6 books from 2019, none from 2020). It would be nice to obtain an updated dat set. 
+
+Note that this data set is a bit outdated (only 6 books from 2019 and none from 2020 or later). It would be nice to obtain an updated dat set. 
+
+
 
 
 ## Filtering by genre
 
-```{r echo = FLASE}
-n_interactions_before_filtering <- nrow(interactions)
+```{r echo = FALSE}
+#n_interactions_before_filtering <- nrow(interactions)
 ```
 
 
-The `shelves` field is a list of virtual shelves that users have added a book to. The name is chosen by the user and can be anything such as "to read", "book club", or the name of the genre. By looking at the list of shelves, we can make some inferences about the book's genre. To limit books for my book club to Christian fiction, I included books that were on at least one shelf with "christian" in the name and at least one shelf with "fiction" in the name (ignoring "nonfiction" and "non-fiction"). This isn't a perfect method for determining genre, but it significantly reduced the data size (228,648,342 interactions reduced to 5,628,062, a 98% reduction).   
+The `shelves` field is a list of virtual shelves that users have added books to. The name is chosen by the user and can be anything such as "to read", "book club", or the name of the genre. By looking at the list of shelves associated with a particular book, we can make some inferences about its genre. To limit books for my book club to Christian fiction, I included books that were on at least one shelf with "christian" in the name and at least one shelf with "fiction" in the name (being careful to ignore "nonfiction" and "non-fiction"). This isn't a perfect method for determining genre, but it significantly reduced the data size: 228,648,342 interactions reduced to 5,628,062, a 98% reduction.   
+
+The three most popular books (i.e. on the most shelves) are:
+
+#1 	The Lion, the Witch and the Wardrobe
+#2 The Poisonwood Bible
+#3 The Chronicles Of Narnia
+#4 The Five People You Meet in Heaven
+#5 Unbroken: A World War II Story of Survival, Resilience, and Redemption
+
+The top book (The Lion, the Witch and the Wardrobe) is a well known classic fiction book and part of the series of books at number 3 (The Chronicles of Narnia). The Poisonwood Bible coming in at #2 is a fiction book that I am not familiar with even though it was a finalist for the Pulitzer Prize in fiction (and chosen for Oprah's Book Club in 1999).
+
+Looking a little further down the list, number five is Unbroken: A World War II Story of Survival, Resilience, and Redemption. This book is a true story and actually shouldn't be in fiction genre. So, we see that this filtering method isn't perfect. I'm OK with that.
+
+```{r, echo=FALSE,out.width="10%",fig.cap="Books that we did not like",fig.show='hold',fig.align='center'}
+knitr::include_graphics(c(str_c(path,"athomeinmitford.jpg"),str_c(path,"thehideaway.jpg"),str_c(path,"thelacemaker.jpg"),str_c(path,"theredtent.jpg")))
+```
+
 
 
 ## Infering Likes and Dislikes
 
-For the NCF model, we need a list of books that each user liked and a list that they did not like, which we can deduce from the `interactions` data. Five randomly sampled rows of this data is shown below
+For the NCF model, we need a list of books that each user liked and a list that they did not like. Some users provided explicit ratings (1 to 5 stars), however, not all users rate the books that they read. Or they just rate books that they like. to obtain a sufficient amount of training data, we'll include both explicit feedback and implicit feedback (i.e. feedback that is inferred from user actions). Five randomly sampled rows of the interaction dataframe is shown below.
 
-```{r}
+```{r eval = FALSE}
 slice_sample(interactions, n=5)
 ```
 
@@ -71,9 +97,9 @@ We'll assume that a reader likes the book if:
 
 This is an optimistic viewpoint because we may include books that the reader later reads and decides that they don't like. 
 
-We'll also assume that a reader did not like a book if they read it and gave it a rating of 1 or 2. Books with a score of 3 were not used for model training. 
+Alternatively, We'll assume that a reader did *not* like a book if they read it and gave it a rating of 1 or 2. Books with a score of 3 were not used for model training. 
 
-Note that there exist cases where no rating has been provided (value of `rating` is 0), but a review exists. I think an enhancement for obtaining more positive and negative examples would be to mine the sentiment of reviews for these instances.
+Note that there exist cases where no rating has been provided (value of `rating` is 0), but a text review exists. An enhancement for obtaining more positive and negative examples might be to mine the sentiment of reviews for these instances.
 
 After performing these steps, I filtered out users who did not have at least 3 books that they liked (a threshold that could be tweaked). TODO: Show histogram of num books per user.
 
@@ -87,6 +113,7 @@ interactions %>%
   #geom_histogram()
 ```
 
+TODO: Add some additional statistics like number of users and number of books.
 
 ## Data for my book club
 
@@ -95,25 +122,46 @@ I added our club's books to the data set. We have read dozens of books, but the 
 
 "Good" books:
 
-Books we didn't like:
+TODO: Add Joel Rosenberg book? Also, add Pearl in the sand to actual training data and re-run model.
+
+```{r, echo=FALSE,out.width="10%",fig.cap="Books that we liked",fig.show='hold',fig.align='center'}
+
+knitr::include_graphics(c(str_c(path,"sophiesheart.jpg"),str_c(path,"safelyhome.jpg"),str_c(path,"Assureasdawn.jpg"),str_c(path,"echointhedarkness.jpg"),str_c(path,"avoiceinthewind.jpg"),str_c(path,"redeeminglove.jpg"),str_c(path,"whencricketscry.jpg"),str_c(path,"longwaygone.jpg"),str_c(path,"pearlinthesand.jpg")))
+``` 
 
 
-Other books: 
-(others not listed were rated in the middle and not useful for training)
-We would have also used the following books for training, but they weren't in the dataset:
-The 49th Mistic https://www.goodreads.com/book/show/36548233-the-49th-mystic (good or bad?)
-My Heart Belongs in Blue Ridge
+
+TODO: Add Masterpiece?
+
+```{r, echo=FALSE,out.width="10%",fig.cap="Books that we did not like",fig.show='hold',fig.align='center'}
+knitr::include_graphics(c(str_c(path,"athomeinmitford.jpg"),str_c(path,"thehideaway.jpg"),str_c(path,"thelacemaker.jpg"),str_c(path,"theredtent.jpg")))
+``` 
+
+As you can see, the number of "duds" was much smaller than the number of books that we liked. Also, Francine Rivers was a popular author (I've only read one of her books listed, but hope to catch up soon).
+
+I would have also used the following books for training, but they were not in the data set:
+[The 49th Mistic](https://www.goodreads.com/book/show/36548233-the-49th-mystic)  `r emo::ji("-1")`
+, [The Kremlin Conspiracy](https://www.goodreads.com/book/show/35620754-the-kremlin-conspiracy?ac=1&from_search=true&qid=TOx79fls5W&rank=1) `r emo::ji("+1")`, and 
+[My Heart Belongs in Blue Ridge](https://www.goodreads.com/book/show/40402597-my-heart-belongs-in-the-blue-ridge?from_search=true&from_srp=true&qid=GIbp9eeJTH&rank=1) `r emo::ji("+1")`.
 
 ## Train/Validation/Test Split
 
+I split the data into train, validation, and test sets following the method used in the NCF paper: 
 
-Method (following the paper):
 - Training: 4 negatives for every positive (for each user)
 - Validation: 1 positive (for each user) 
 - Test: 1 positive, 100 negative (for each user)
 
+If a user did not have enough negatives for the 4-to-1 ratio of negatives to positives in the training set, then I sampled "implicit" negatives (i.e. those books that are not on the user's shelf). The empirical popularity distribution of the books provided sampling probabilities, meaning that more popular books were more likely to be sampled. This is often a good idea for training recommender systems since users are likely already aware of the popular items. I sampled these training data points for each epoch of model training.
+
+If the user had *more* negatives than the 4-to-1 ratio, then the extras were put in the test set. If the test set lacked the 100 negatives, then I sampled "implicit" negatives to fill out the test set (using the same strategy as described for the training set). Sampling of the test set was done once prior to model training.
 
 ## Results
+
+Metrics:
+
+* 0.588 HR@10
+* 0.368 NDGC@10
 
 ```{r}
 load("recommendations_12_2.rds")
@@ -130,26 +178,26 @@ p1
 
 ```
 
-```{r}
+```{r eval = FALSE}
 # The following works, but I'm thinking there must be a more elegant method.
 rec_m_12_2 <- rec_m_12_2 %>% mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0)) 
 
 ```
 
-```{r}
-p2 <- rec_m_12_2 %>% 
+```{r eval = FALSE}
+p2 <- recommendations %>% 
   mutate(author1 = if_else(francinerivers == TRUE, "Francine Rivers", "Other")) %>%
   filter(pred >= 0.5) %>%
   ggplot(aes(pred, fill = author1)) +
   geom_histogram(alpha=0.7, position="identity") + 
-  #guides(fill = guide_legend(reverse = TRUE)) +
+  #guides(fill = guide_legend(reverse = TRUE)) +0.588
   theme_classic() + 
   theme(legend.title = element_blank()) + 
   labs(y = element_blank(), x = element_blank())
 p2
 ```
 
-```{r}
+```{r eval = FALSE}
 library(patchwork)
 
 p1 + inset_element(p2, left = 0.3, bottom = 0.3, right = 1, top = .9)
