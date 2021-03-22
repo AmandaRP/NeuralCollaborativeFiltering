@@ -23,7 +23,7 @@ num_epochs <- 10
 #                See https://sites.google.com/eng.ucsd.edu/ucsdbookgraph/shelves?authuser=0
 # Files needed: goodreads_interactions.csv, book_id_map.csv
 # Did not use user_id_map.csv
-path <- "Data/"
+path <- "/data/"
 #download.file("https://drive.google.com/uc?id=1CHTAaNwyzvbi1TR08MJrJ03BxA266Yxr", str_c(path, "book_id_map.csv"))
 
 
@@ -165,7 +165,7 @@ interactions_negative <-
 # Add my book club to training data --------------------------------------------
 
 # Create a new "user_id" for my reading group and list books that we've liked and disliked
-# Book ids are those provided in the original dataset.
+# Book ids are the work_id's provided in the original dataset.
 book_club_user_id <- max(users2keep$new_user_id) + 1
 users2keep <- bind_rows(users2keep, c("user_id" = NA, "new_user_id" = book_club_user_id))
 book_club_interactions <- 
@@ -175,6 +175,7 @@ book_club_interactions <-
     book_club_user_id, 1080682, 4, # Sophie's Heart
     book_club_user_id, 49776093,  4, # Long Way Gone
     book_club_user_id, 233843,  4, # When Crickets Cry
+    book_club_user_id, 12832808, 4, # Pearl in the Sand
     book_club_user_id, 820210, 5, # Redeeming Love - Francine Rivers
     book_club_user_id, 883913, 5, # Mark of the Lion Series - Francine Rivers (A Voice in the Wind)
     book_club_user_id, 522675, 5, # Mark of the Lion Series - Francine Rivers (An Echo in the Darkness)
@@ -182,12 +183,13 @@ book_club_interactions <-
     book_club_user_id, 1041558, 1, # The Red Tent- Anita Diamant 
     book_club_user_id, 56364628, 1, # The Lacemaker by Laura Frantz (though Susan Loved It) 
     book_club_user_id, 1222486,  1, # At Home in Mitford
-    book_club_user_id, 42455432, 1  # The Hideaway
+    book_club_user_id, 42455432, 1 # The Hideaway
   ) 
 
-#TODO: Convert work_id's above to new book id
+#Convert work_id's above to new book id
 book_club_interactions %<>% left_join(new_book_id_df) %>% select(-n, -p)
 
+#Add book club pos list to positive interactions set
 interactions_positive %<>%
   bind_rows(
     book_club_interactions %>% 
@@ -195,7 +197,7 @@ interactions_positive %<>%
       select(user_id, book_id)
     )
 
-
+#Add book club neg list to negative interactions set
 interactions_negative %<>%
   bind_rows(
     book_club_interactions %>% 
@@ -446,11 +448,12 @@ recommendations <-
   select(-n, -p) %>%
   arrange(desc(pred))
 
-recommendations %>% 
+reccdf <- recommendations %>% 
   inner_join(book_info) %>% 
   select(pred, book_id, work_id, title, authors, publication_year, url) %>% 
-  mutate(authors = map(authors, ~filter(., !(role %in% c("Narrator", "Translator", "Read by"))))) %>% #Remove narrator, translator
-  View()
+  mutate(authors = map(authors, ~filter(., !(role %in% c("Narrator", "Translator", "Read by"))))) #%>% #Remove narrator, translator
+  #View()
+View(reccdf)
 
 # Add popularity measure to recommendation data frame:
 reccdf <-  
