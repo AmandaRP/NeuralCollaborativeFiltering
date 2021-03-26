@@ -132,10 +132,10 @@ knitr::include_graphics(c(str_c(path,"safelyhome.jpg"),str_c(path,"longwaygone.j
 Books that we did *not* enjoy:
 
 ```{r, echo=FALSE,out.width="10%",fig.cap="Books that we did not like",fig.show='hold',fig.align='center'}
-knitr::include_graphics(c(str_c(path,"athomeinmitford.jpg"),str_c(path,"thehideaway.jpg"),str_c(path,"thelacemaker.jpg"),str_c(path,"theredtent.jpg"), str_c(path,"masterpiece.jpg")))
+knitr::include_graphics(c(str_c(path,"athomeinmitford.jpg"),str_c(path,"thehideaway.jpg"),str_c(path,"thelacemaker.jpg"),str_c(path,"theredtent.jpg")))
 ``` 
 
-As you can see, the number of "duds" was much smaller than the number of books that we liked. Also, Francine Rivers was a popular author, but we didn't like one of her books  (I've only read one of her books listed in the "good" set, but hope to catch up soon).
+As you can see, the number of "duds" was much smaller than the number of books that we liked. Also, Francine Rivers was a popular author (I've only read one of her books, but hope to catch up soon).
 
 I would have also used the following books for training, but they were not in the data set:
 [The 49th Mistic](https://www.goodreads.com/book/show/36548233-the-49th-mystic)  `r emo::ji("-1")`
