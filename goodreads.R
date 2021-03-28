@@ -419,6 +419,7 @@ metrics %>%
   geom_line() +
   facet_grid(. ~metric)
 
+
 # Evaluate returns same metrics that were defined in the compile for the test set (accuracy in this case)
 (results <- model %>% evaluate(list(test$user_id, test$book_id), test$label))
 
@@ -430,8 +431,8 @@ test_pred <- model %>%
 
 # Compute hit rate and ndcg
 source("evaluation.R")
-compute_hr(test_pred, 10)
-compute_ndcg(test_pred, 10)
+(hr_test <- compute_hr(test_pred, 10))
+(ndcg_test <- compute_ndcg(test_pred, 10))
 
 
 # Make recommendations ----------------------------------------------------
@@ -449,16 +450,14 @@ recommendations <-
   arrange(desc(pred))
 
 reccdf <- recommendations %>% 
+  mutate(rank = row_number()) %>%
   inner_join(book_info) %>% 
-  select(pred, book_id, work_id, title, authors, publication_year, url) %>% 
-  mutate(authors = map(authors, ~filter(., !(role %in% c("Narrator", "Translator", "Read by"))))) #%>% #Remove narrator, translator
-  #View()
+  inner_join(new_book_id_df, by = c("book_id", "work_id")) %>% # Add popularity measure to recommendation data frame
+  select(rank, pred, p, book_id, work_id, title, authors, publication_year, url) %>% 
+  mutate(authors = map(authors, ~filter(., !(role %in% c("Narrator", "Translator", "Read by"))))) %>% #Remove narrator, translator
+  mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0))
 View(reccdf)
 
-# Add popularity measure to recommendation data frame:
-reccdf <-  
-recommendations %>% 
-  inner_join(book_info) %>% 
-  inner_join(new_book_id_df, by = c("book_id", "work_id")) %>%
-  select(pred, p, book_id, work_id, title, publication_year, url)
-  
+
+save(hr_test, ndcg_test, test_pred, new_book_id_df, reccdf, file = "results_20210327.Rda")
+load("results_20210327.Rda")
