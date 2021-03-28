@@ -1,30 +1,20 @@
 ---
-title: "Book Recommendations via Neural Collaborative Filtering"
+title: "Book Recommendations using Neural Collaborative Filtering"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 path <- "/home/rstudio/NeuralCollaborativeFiltering/blog/images/"
+source("/home/rstudio/NeuralCollaborativeFiltering/blog/evaluation.R")
+load("/home/rstudio/NeuralCollaborativeFiltering/blog/results_20210327.Rda")
 ```
 
-```{r}
+```{r include=FALSE}
 library(tidyverse)
 ```
 
-
-<!-- ```{r echo=FALSE, cache = TRUE} -->
-<!-- path <- "/data/" -->
-<!-- interactions <- read_csv(str_c(path, "goodreads_interactions.csv"), col_names = TRUE) -->
-<!-- book_id_map <- read_csv(str_c(path, "book_id_map.csv"), col_names = TRUE) # Need for linking to book info dataset -->
-<!-- #system("tar -xzf ../Data/goodreads_books_christian.tar.gz") -->
-<!-- load("goodreads_books_christian.RData") -->
-<!-- #system("rm goodreads_books_christian.RData") -->
-
-<!-- ``` -->
-
-
-Over the past 1.5 years I have enjoyed being part of a book club. 
+Over the past 1.5 years I have enjoyed being part of a book club with ladies from my church. 
 Sadly our book club ended as our beloved leader moved to Ohio. 
 I plan to continue reading books, but what should I read? 
 That's when I decided to build a recommender system. 
@@ -33,7 +23,7 @@ That's when I decided to build a recommender system.
 
 A recommender system utilizes user feedback history (either explict such as start ratings or implicit such as views, clicks, purchases, etc) to recommend items to users. Recommender systems have become ubiquitous in our society 
 
-In this experiment, I'll be using a [Neural Collaborative Filtering](https://arxiv.org/pdf/1708.05031.pdf?source=post_page---------------------------) model. I created a version of the model in R Keras, which is available on [GitHub](https://github.com/AmandaRP/NeuralCollaborativeFiltering). Also, the authors of the NCF paper have a Python version in [this GitHub repository](https://github.com/hexiangnan/neural_collaborative_filtering).
+In this experiment, I'll be using a [Neural Collaborative Filtering](https://arxiv.org/pdf/1708.05031.pdf?source=post_page---------------------------) model. Using [R Keras](https://keras.rstudio.com/) I created a version of the model, which is available on [GitHub](https://github.com/AmandaRP/NeuralCollaborativeFiltering). The authors of the NCF paper have a Python version in [this GitHub repository](https://github.com/hexiangnan/neural_collaborative_filtering).
 
 The model is designed for binary feedback (that is, positive and negative user preferences). I'll be using a mixture of explicit and implicit feedback, which is described in TODO. The neural network model architecture is shown below (image from the original NCF paper by He et al).
 
@@ -60,11 +50,11 @@ Note that this data set is a bit outdated (only 6 books from 2019 and none from 
 The `shelves` field is a list of virtual shelves that users have added books to. The name is defined by the user and can be anything such as "to read", "book club", or the name of the genre. By looking at the list of shelves associated with a particular book, we can make some inferences about its genre. To limit books for my book club to Christian fiction (the focus of our group), I included books that were on at least one shelf with "christian" in the name and at least one shelf with "fiction" in the name (being careful to ignore "nonfiction" and "non-fiction"). This isn't a perfect method for determining genre, but it significantly reduced the data size: 228,648,342 user-book interactions reduced to 5,628,062, a 98% reduction.   
 The five most popular books (i.e. on the most shelves) are:
 
-#1 	The Lion, the Witch and the Wardrobe
-#2 The Poisonwood Bible
-#3 The Chronicles Of Narnia
-#4 The Five People You Meet in Heaven
-#5 Unbroken: A World War II Story of Survival, Resilience, and Redemption
+1. The Lion, the Witch and the Wardrobe
+2. The Poisonwood Bible
+3. The Chronicles Of Narnia
+4. The Five People You Meet in Heaven
+5. Unbroken: A World War II Story of Survival, Resilience, and Redemption
 
 The top book (The Lion, the Witch and the Wardrobe) is a well known classic fiction book and part of the series of books at number 3 (The Chronicles of Narnia). It is one that I read as a young girl. The Poisonwood Bible coming in at #2 is a fiction book that I am not familiar with even though it was a finalist for the Pulitzer Prize in fiction (and chosen for Oprah's Book Club in 1999).
 
@@ -73,7 +63,6 @@ Looking a little further down the list, number five is Unbroken: A World War II 
 ```{r, echo=FALSE,out.width="10%",fig.cap="Books that we did not like",fig.show='hold',fig.align='center'}
 knitr::include_graphics(c(str_c(path,"athomeinmitford.jpg"),str_c(path,"thehideaway.jpg"),str_c(path,"thelacemaker.jpg"),str_c(path,"theredtent.jpg")))
 ```
-
 
 
 ## Infering Likes and Dislikes
@@ -119,19 +108,13 @@ After these steps there are TODO users having TODO.
 I added our club's books to the data set. We have read dozens of books, but the following were those that we had a strong opinion about (either "good" and "bad").
 
 
-Books that we liked:
-
-TODO:  re-run model (b/c I added Pearl in the sand).
-
 ```{r, echo=FALSE,out.width="10%",fig.cap="Books that we liked",fig.show='hold',fig.align='center'}
 
 knitr::include_graphics(c(str_c(path,"safelyhome.jpg"),str_c(path,"longwaygone.jpg"),str_c(path,"whencricketscry.jpg"),str_c(path,"redeeminglove.jpg"),str_c(path,"Assureasdawn.jpg"),str_c(path,"echointhedarkness.jpg"),str_c(path,"avoiceinthewind.jpg"),str_c(path,"pearlinthesand.jpg"),str_c(path,"sophiesheart.jpg")))
 ``` 
 
 
-Books that we did *not* enjoy:
-
-```{r, echo=FALSE,out.width="10%",fig.cap="Books that we did not like",fig.show='hold',fig.align='center'}
+```{r, echo=FALSE,out.width="10%",fig.cap="Books that we did not enjoy",fig.show='hold',fig.align='center'}
 knitr::include_graphics(c(str_c(path,"athomeinmitford.jpg"),str_c(path,"thehideaway.jpg"),str_c(path,"thelacemaker.jpg"),str_c(path,"theredtent.jpg")))
 ``` 
 
@@ -159,96 +142,76 @@ If the user had *more* negatives than the 4-to-1 ratio, then the extras were put
 
 I considered the following two metrics:
 
-* Hit rate at 10 (HR@10): 
+* Hit rate at 10 (HR@10): The percentage of users who's "good" book appeared in their top 10 recommended books. (Recall the test set is composed of 100 "bad" and 1 "good" book for each user.)
 * Normalized Discounted Cummulative Gain at 10 (NDGC at 10): 
 
-The result was 0.588 HR@10 and 0.368 NDGC@10 (evaluated on the test set). The resulting recommendations for our book club were:
+The result was `r hr_test` HR@10 and `r ndcg_test` NDGC@10 (evaluated on the test set). The distribution of predictions for all books and users is shown below (separated for "good" and "bad" books). 
 
-TODO
+```{r}
+# Plot Predictions by label
+p <- test_pred %>% 
+  #slice_sample(n = 1000) %>%
+  mutate(Class = case_when(
+    label == 1 ~ "Good",
+    label == 0 ~ "Bad"
+  )) %>%
+  mutate(class = as.factor(Class)) %>%
+  ggplot(aes(pred, fill = Class)) + 
+  geom_density(alpha=0.4) + 
+  xlab("prediction") +
+  ggtitle("Prediction Density for Test Set") +
+  theme_light()
+p
+```
 
+I'm happy to see that the most of the "bad" books have low scores while the "good" books are more evenly spread out with a little bump on the high end. The goal is to score "good" higher than the "bad" (on a per-user basis).
 
+### Recommendations for my book club
+
+To get a better sense of how this recommender did, let's inspect the recommendations for my book club. The top 3 recommendations were all books by Francine Rivers (which makes sense since four of her books were on our short list of books that we liked). In fact, looking at the top 25 books on the list, `reccdf %>% filter(rank <= 25) %>% select(rank, francinerivers) %>% distinct() %>% summarize(100*mean(francinerivers))` percent were written by this author. It seems that having 4 of 9 books by Francine as part of our "good" training set may be skewing the recommednations toward this author.
+
+Coming in at #4, we find the first book by a different author: [Gods and Kings](https://www.goodreads.com/book/show/359994.Gods_and_Kings) by Lynn Austin. This is an author that we have not read before. Interestingly, the book appears as a "Readers also enjoyed" suggestion on the GoodReads page of one of our "liked" books:
+
+```{r, echo=FALSE,out.width="60%",fig.align='center'}
+knitr::include_graphics(str_c(path,"peoplealsoliked.png"))
+``` 
+
+Looking at the worst scoring books for our group, we find books that we would likely *not* enjoy: [Come On Over (CO2)](https://www.goodreads.com/book/show/22085728-come-on-over#) and [Marry Me Now, Sorry Later](https://www.goodreads.com/book/show/25272615-marry-now-sorry-later) (rank 25437 and 25436 respectively). In fact, these books are not even in our preferred genre of Christian fiction. They were mistakenly included due to the author's name: Christian Simamora.
+
+Overall, I'm pretty happy with these recommendations (even though the top of the list doesn't demonstrate as much author variety as I'd like to see). The recommendations do feel tailored to my group's reading interests.
 
 ### Surprising results
 
-If I provide recommendations based solely on popularity (i.e. everyone's number one recommendation will be The Lion, The Witch, and The Wardrobe unless they already have it on their shelf), then it turns out that the HR@10 is 0.817 and the NDCG@10 is 0.655. These metrics are better than the metrics obtained via the fancy deep learning model! `r emo::ji(":o")`
-
-So, why not just use this simple "model" instead of wasting time with a neural network? Well, if we just recommend popular books that people have already heard of, it's not going to be helpful to them. People want recommendations that fit their unique interests. The best scenario is to recommend a book that they have never heard of (serendipity) which will also be their new favorite book (easier said than done!). 
-
-The lesson here is that better metrics do not always translate to better recommendations!
-
-```{r}
+```{r include = FALSE}
 # Sanity check. Popularity model (no deep learning)
-# Code: 
-    popularity_pred <- inner_join(test_pred, new_book_id_df, by = c("item" = "book_id"))  %>% 
+popularity_pred <- inner_join(test_pred, new_book_id_df, by = c("item" = "book_id"))  %>% 
     select(-pred, -n, -work_id) %>% 
     mutate(pred = p) %>% 
     select(pred, user, item, label)
-    compute_hr(popularity_pred, 10)
-# hr: 0.817 ("better" than 12/2 model, worse than 12/3 model)
-# ndcg: 0.655 ("better" than 12/2 model, worse than 12/3 model)
+
+hr_pop <- compute_hr(popularity_pred, 10)
+ndcg_pop <- compute_ndcg(popularity_pred, 10)
+# hr: 0.817 
+# ndcg: 0.655 
 ```
 
 
-<!-- A surprising thing happened when I changed the method for sampling of implicit negatives from bias weighting to unifom weight. The metrics went up (TODO), however, I wasn't as satisfied with our group's recommendations. The new recommendations were: -->
+If I provide recommendations based solely on popularity (i.e. everyone's number one recommendation will be The Lion, The Witch, and The Wardrobe unless they already have it on their shelf), then it turns out that the HR@10 is `r hr_pop` and the NDCG@10 is `r ndcg_pop`. These metrics are better than the metrics obtained via the fancy deep learning model! `r emo::ji("surprise")`
 
-<!-- TODO -->
+So, why not just use this simple "model" instead of wasting time with a neural network? Well, if we just recommend popular books that people have already heard of, it's not going to be helpful to them. People want recommendations that fit their unique interests. The best scenario is to recommend a book that they have never heard of (serendipity) which will also be their new favorite book (easier said than done!). 
 
-<!-- But, maybe other people received "better" recommendations? Maybe those who had more books on their shelves? To investigate, I considered a user with ~100 "good" and "bad" books. TODO. -->
+The lesson here is that better metrics do not always translate to better recommendations! It might be helpful to also track metrics that measure serendipity in some way.
 
-
-
-
-
-```{r}
-load("recommendations_12_2.rds")
-
-#plot:
-p1 <- recommendations %>% 
-  ggplot(aes(pred)) + 
-  geom_histogram() + 
-  ggtitle("Distribution of Predicted Book Scores for Reading Group") + 
-  xlab("Predicted Score") +
-  ylab("Book Count") + 
-  theme_classic()
-p1
-
-```
-
-```{r eval = FALSE}
-# The following works, but I'm thinking there must be a more elegant method.
-rec_m_12_2 <- rec_m_12_2 %>% mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0)) 
-
-```
-
-```{r eval = FALSE}
-p2 <- recommendations %>% 
-  mutate(author1 = if_else(francinerivers == TRUE, "Francine Rivers", "Other")) %>%
-  filter(pred >= 0.5) %>%
-  ggplot(aes(pred, fill = author1)) +
-  geom_histogram(alpha=0.7, position="identity") + 
-  #guides(fill = guide_legend(reverse = TRUE)) +0.588
-  theme_classic() + 
-  theme(legend.title = element_blank()) + 
-  labs(y = element_blank(), x = element_blank())
-p2
-```
-
-```{r eval = FALSE}
-library(patchwork)
-
-p1 + inset_element(p2, left = 0.3, bottom = 0.3, right = 1, top = .9)
-```
-
-
-  
 
 ## Final thoughts
 
 1. Due to hardware limitations and slow model training, I didn't perform hyper-parameter tuning. Rather I used the defaults that were used in the NCF paper. A grid search of the hyperparamter space would likely be beneficial. (I am using a TODO GPU. One training epoch takes ~7 hours.) 
 
-2. My group's training data may not be large enough. A model that is better suited for cold start situations, i.e. a model that takes side features such as author and book description.
+1. As mentioned earlier, the Goodreads data set that I used is a couple of years out of date. It would be great to retrain the model on the newer data.
 
-3. Point out criticisms of NCF?
+1. My group's training data may not be large enough. A model that is better suited for cold start situations, i.e. a model that takes side features such as author and book description.
+
+1. Point out criticisms of NCF?
 
 I have a few books on my short list to read, but I'm still in search of more. I may try another recommender model. Let me know if you have a good suggestion!
 
