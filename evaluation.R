@@ -4,7 +4,8 @@
 compute_hr <- function(test_pred, k){
   test_pred %>%
     group_by(user) %>%
-    slice_max(order_by = pred, n = k) %>%
+    slice_max(order_by = pred, n = k) %>% # Note: Use with_ties=FALSE with caution here. First k rows will be selected based on order of data.
+    slice_sample(n = k, replace = FALSE) %>% # Randomly sample incase there were ties in the prev step
     summarize(hits = sum(label)) %>%
     summarize(hr = mean(hits)) 
   
