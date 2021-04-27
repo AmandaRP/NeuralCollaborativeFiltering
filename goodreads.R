@@ -384,11 +384,7 @@ for(epoch in 1:num_epochs){
     best <- val_loss[epoch]
     save_model_hdf5(model, "model.h5")
   }
-  # Save the best model (according to validation ndcg) 
-  #if(epoch == 1 || val_ndgc[epoch] >= best){
-  #  best <- val_ndgc[epoch]
-  #  save_model_hdf5(model, "model.h5")
-  #}
+
   
   # Stop early if the validation loss is greater than (or equal to) the previous X epochs where X = patience
   if(epoch > patience && all(val_loss[epoch] >= val_loss[epoch - 1:patience])){
@@ -449,15 +445,49 @@ recommendations <-
   select(-n, -p) %>%
   arrange(desc(pred))
 
+
+# Prep for blog post ----------------------------------------------------
+
 reccdf <- recommendations %>% 
   mutate(rank = row_number()) %>%
   inner_join(book_info) %>% 
   inner_join(new_book_id_df, by = c("book_id", "work_id")) %>% # Add popularity measure to recommendation data frame
   select(rank, pred, p, book_id, work_id, title, authors, publication_year, url) %>% 
   mutate(authors = map(authors, ~filter(., !(role %in% c("Narrator", "Translator", "Read by"))))) %>% #Remove narrator, translator
-  mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0))
+  mutate(francinerivers = map_lgl(authors, ~filter(., author_id == 6492) %>% nrow() > 0)) %>%
+  mutate(randyalcorn = map_lgl(authors, ~filter(., author_id == 4862) %>% nrow() > 0)) %>%
+  mutate(charlesmartin = map_lgl(authors, ~filter(., author_id == 67487) %>% nrow() > 0)) %>%
+  mutate(loriwick = map_lgl(authors, ~filter(., author_id == 10679) %>% nrow() > 0)) %>%
+  mutate(tessaafshar = map_lgl(authors, ~filter(., author_id == 3501390) %>% nrow() > 0)) 
 View(reccdf)
 
+# Sanity check. Popularity model (no deep learning)
+popularity_pred <- inner_join(test_pred, new_book_id_df, by = c("item" = "book_id"))  %>% 
+  select(-pred, -n, -work_id) %>% 
+  mutate(pred = p) %>% 
+  select(pred, user, item, label)
 
-save(hr_test, ndcg_test, test_pred, new_book_id_df, reccdf, file = "results_20210327.Rda")
-load("results_20210327.Rda")
+(hr_pop <- compute_hr(popularity_pred, 10))
+(ndcg_pop <- compute_ndcg(popularity_pred, 10))
+
+# Plot Predictions by label
+plt_preds <- test_pred %>% 
+  #slice_sample(n = 1000) %>%
+  mutate(Class = case_when(
+    label == 1 ~ "Good",
+    label == 0 ~ "Bad"
+  )) %>%
+  mutate(class = as.factor(Class)) %>%
+  ggplot(aes(pred, fill = Class)) + 
+  geom_density(alpha=0.4) + 
+  xlab("prediction") +
+  ggtitle("Test Set Prediction Densities") +
+  theme_light()
+plt_preds
+ggsave("blog/images/plt_preds.png")
+
+num_users <- max(users2keep$new_user_id)
+num_books <- max(new_book_id_df$book_id)
+
+save(hr_test, ndcg_test, hr_pop, ndcg_pop, reccdf, num_users, num_books, file = "blog/results_20210327.Rda")
+load("blog/results_20210327.Rda")
