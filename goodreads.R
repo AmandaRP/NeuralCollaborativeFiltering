@@ -333,15 +333,6 @@ for(epoch in 1:num_epochs){
                                                             rename(user = user_id, item = book_id),
                                                           p = new_book_id_df$p)
   implicit_neg_samples_train$item <- as.integer(implicit_neg_samples_train$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
-  # Replicate the explicit negatives for each epoch and add an epoch number:
-  #train_negative %<>% 
-  #  mutate(num = num_epochs) %>%
-  #  uncount(num_epochs) %>%
-  #  group_by(user_id, book_id) %>% # Label epoch number
-  #  mutate(epoch_id = 1:num_epochs) %>%
-  #  ungroup()
-  # Add in the implicit negatives (TODO: Make sure there is an epoch_id column)
-  #train_negative <- bind_rows(train_negative, implicit_neg_samples_train %>% rename(user_id = user, book_id = item, epoch_id = TODO))
   
   
   train <- bind_rows(add_column(train_positive %>% 
