@@ -22,4 +22,5 @@ repo](https://github.com/hexiangnan/neural_collaborative_filtering)).
 2.  GoodReads book recommendations: See the `goodreads.R` script in this
     repo. A Christian book subset is provided in the `/Data` directory.
     To create your own genre subset, use the `/Data/genre_subset.R`
-    script.
+    script. Results are described in [this blog
+    post](associated%20blog%20post%20%5Bhere%5D\(https://amanda.rbind.io/2021/04/12/book-recommendations-using-neural-collaborative-filtering/\)).
