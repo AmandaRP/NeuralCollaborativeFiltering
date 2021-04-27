@@ -17,4 +17,4 @@ An implementation of Neural Collaborative Filtering (NCF) using [R Keras](https:
 ## Examples
 
 1. Two datasets are provided by the NCF paper authors in their [GitHub repo](https://github.com/hexiangnan/neural_collaborative_filtering/tree/master/Data): Movie Lense and Pinterest, both of which are described in detail in their paper. See the `ml_pinterest.R` script in this repo. Choose between the two datasets via the `movielense` flag.
-2. GoodReads book recommendations: See the `goodreads.R` script in this repo. A Christian book subset is provided in the `/Data` directory. To create your own genre subset, use the `/Data/genre_subset.R` script. Results are described in [this blog post](associated blog post [here](https://amanda.rbind.io/2021/04/12/book-recommendations-using-neural-collaborative-filtering/)).
+2. GoodReads book recommendations: See the `goodreads.R` script in this repo. A Christian book subset is provided in the `/Data` directory. To create your own genre subset, use the `/Data/genre_subset.R` script. Results are described in [this blog post](https://amanda.rbind.io/2021/04/12/book-recommendations-using-neural-collaborative-filtering/).
