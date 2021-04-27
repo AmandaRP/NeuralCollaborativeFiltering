@@ -27,7 +27,6 @@ def samp_impl_neg(item_ids , n, excludes=[] , num_batches = 1, p = None):
 #               Must include "user" and "item" columns
 #  num_batches: Use for multiple "batches" of samples. Useful for multiple epochs.
 #  p: probability vector. Same length as item_ids. Gives sampling probability for each item.
-# TODO: Add an optional probability vector for each item (could be used to assign higher probability to popular items)
 def sample_implicit_negatives(user_ids, item_ids, num_items_to_sample, df_exclude, num_batches = 1, p = None):
     # dictionary for user ids and associated number of items to sample
     d = {k:v for (k,v) in zip(user_ids, num_items_to_sample)}
