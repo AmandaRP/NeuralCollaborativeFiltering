@@ -213,6 +213,7 @@ interactions_negative %<>%
 # - Validation: 1 positive (for each user) 
 # - Test: 1 positive, 100 negative (for each user)
 
+
 # Positives:
 test_positive <- interactions_positive %>% 
   filter(user_id != book_club_user_id) %>% # Don't want to include my club's books in test (need to keep all training data)
@@ -281,12 +282,11 @@ implicit_neg_samples_test <- sample_implicit_negatives(user_ids = df$user_id,
                                                                          test_positive %>% select(user_id, book_id), 
                                                                          train_negative %>% select(user_id, book_id), 
                                                                          test_negative  %>% select(user_id, book_id)) %>%
-                                                    rename(user = user_id, item = book_id),
+                                                    rename(user = user_id, item = book_id) ,
                                                   p = new_book_id_df$p)
 toc()
 implicit_neg_samples_test$item <- as.integer(implicit_neg_samples_test$item) #Change column type from list to integer. #TODO: Can this be fixed in python code?
 test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(user_id = user, book_id = item))
-
 
 #Put it all together (we'll compose training data for each epoch later):
 test <- bind_rows(add_column(test_positive  %>% select(user_id, book_id), label = 1), 
@@ -315,7 +315,7 @@ model <- ncf_model(num_users = max(users2keep$new_user_id) + 1,
 
 # training loop
 train_loss <- val_loss <- train_acc <- val_acc  <- rep(NA, num_epochs)
-patience <- 2
+patience <- 3
 tic()
 for(epoch in 1:num_epochs){
   cat("Epoch", epoch, "\n")
@@ -480,5 +480,9 @@ ggsave("blog/images/plt_preds.png")
 num_users <- max(users2keep$new_user_id)
 num_books <- max(new_book_id_df$book_id)
 
-save(hr_test, ndcg_test, hr_pop, ndcg_pop, reccdf, num_users, num_books, file = "blog/results_20210327.Rda")
-load("blog/results_20210327.Rda")
+#save(hr_test, ndcg_test, hr_pop, ndcg_pop, reccdf, num_users, num_books, file = "blog/results_20210327.Rda")
+#load("blog/results_20210327.Rda")
+
+# Cleanup:
+rm(model)
+k_clear_session()
