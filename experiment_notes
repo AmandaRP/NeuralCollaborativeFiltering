@@ -205,7 +205,7 @@ Recommendations:
 Test HR@10: 0.816
 Test NDCG@10: 0.654  
 -Amazingly, if I compute the HR & NDCG for books ordered solely based on popularity, then I get the same metrics! (The test set was chosen without down sampling pop items, so the metrics will be higher here than for a test set where pop items were downsampled.)
--This shows that you DO want to down-sample pop items at-least for the test set. In other words, what do you want to measure? Do you want to measure that you can predict popular items well? No!
+-This shows that you DO want to down-sample pop items at-least for the test set. In other words, what do you want to measure? "Uniformly random" books, or books that are more obscure? 
 *** My thougths: Comparing this experimetn to one where pop biased sampling is used is NOT comparing apples to apples unless we use the same test set. 
 1. The Lion, the Witch and the Wardrobe
 2. The Chronicles of Narnia
@@ -217,9 +217,23 @@ Test NDCG@10: 0.654
 8. Uncle Tom's Cabin
 9. Edenbrooke https://www.goodreads.com/book/show/22665876
 10. The Holy Bible, King James Version
-Oberservation: This list is very correlated to the list of items sorted by popularity, but it contains books that I would actually read (not the poisonwood bible, which is now ranked #17). Kind of like a "slightly"" personalized popular list.
+Oberservation: This list is *very* correlated to the list of items sorted by popularity, but it contains books that I would actually read (not the poisonwood bible, which is now ranked #17). Kind of like a "slightly"" personalized popular list.
 
 # Exp 2: May 11, 2021 experiment #2 (rerunning model WITH popularity biased sampling of both train and test to see if HR changed after fixing evaluation.R)
-# TODO: Check numbers against my blog post because I've changed evaluation code to handle ties differently. Did they change?
+# TODO: Check numbers against my blog post because I've changed evaluation code to handle ties differently. Did they change? Redo sanity check on pop ordered test set as well.
+Result:  .588 HR@10, 0.369 NDCG@10
+Blog post: 0.59 HR at 10 and 0.37 NDGC at 10
+... OK, no big changes.
 
-# Exp 3: After saving test set from prev expierment, run an expiriment where the TRAINING set does not use popularity down-sampling.
+# Exp 3: After saving test set from prev expierment, run an expiriment where the TRAINING set does not use popularity down-sampling. (Comparing to Exp 2 is comparing apples to apples.)
+HR@10: 0.452, NDCG@10: 0.247
+So, metrics decreased
+Recommendations:
+1. Unbroken
+2. The Hiding Place
+3. Mere Christianity
+4. The Screwtape Letters
+5. The Chronicles of Narnia
+Sanity check (popularity) model for this test set: HR@10: 0.276, NDCG@10: 0.151 (lower)
+
+Comment: I like the idea of popularity down=sampling for all sets (keep the distributions the same). 
