@@ -292,7 +292,7 @@ test_negative <- bind_rows(test_negative, implicit_neg_samples_test %>% rename(u
 test <- bind_rows(add_column(test_positive  %>% select(user_id, book_id), label = 1), 
                   add_column(test_negative  %>% select(user_id, book_id), label = 0))
 validation <- add_column(validation, label = 1)
-
+ 
 
 
 # Define model ------------------------------------------------------------
