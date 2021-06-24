@@ -4,8 +4,7 @@
 compute_hr <- function(test_pred, k){
   test_pred %>%
     group_by(user) %>%
-    slice_max(order_by = pred, n = k) %>% # Note: Use with_ties=FALSE with caution here. First k rows will be selected based on order of data.
-    slice_sample(n = k, replace = FALSE) %>% # Randomly sample incase there were ties in the prev step
+    slice_max(order_by = pred, n = k, with_ties = FALSE) %>% # Note: Use with_ties=FALSE with caution here. First k rows (of ties that cross the cutoff) will be selected based on order of data. Would prefer ties be broken by random sampling
     summarize(hits = sum(label)) %>%
     summarize(hr = mean(hits)) 
   
@@ -18,7 +17,7 @@ compute_hr <- function(test_pred, k){
 compute_ndcg <- function(test_pred, k){
   test_pred %>% 
     group_by(user) %>% 
-    slice_max(order_by = pred, n = k) %>%
+    slice_max(order_by = pred, n = k, with_ties = FALSE) %>%
     mutate(rank = rank(desc(pred), ties.method = "random")) %>% 
     mutate(dcg = (2^label-1)/log(rank+1, base = 2)) %>%
     summarize(ndcg_user = sum(dcg)) %>%
